@@ -5,7 +5,7 @@
 # Setting up Blender + VS Code programmiong Environment
 RefCOCO Synthetic 3D Dataset Generation
 
-For VS Code + Blender integration follow CG Python's tutorial [Windows](https://www.youtube.com/watch?v=YUytEtaVrrc)https://www.youtube.com/watch?v=YUytEtaVrrc), (macOS)[https://www.youtube.com/watch?v=_0srGXAzBZE], (Linux)[(https://www.youtube.com/watch?v=zP0s1i9EXeM)https://www.youtube.com/watch?v=zP0s1i9EXeM]), although would recommend using Anaconda for virtual environment.
+For VS Code + Blender integration follow CG Python's tutorial [Windows](https://www.youtube.com/watch?v=YUytEtaVrrc), [macOS](https://www.youtube.com/watch?v=_0srGXAzBZE), [Linux]((https://www.youtube.com/watch?v=zP0s1i9EXeM)https://www.youtube.com/watch?v=zP0s1i9EXeM), although would recommend using Anaconda for virtual environment.
 
 Post tutorial, to quickly run new python code from blender with hotkey:
 1) Open python script file in VS Code
