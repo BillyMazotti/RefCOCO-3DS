@@ -9,10 +9,9 @@ For VS Code + Blender integration follow CG Python's tutorial ([Windows](https:/
 
 Post tutorial, to quickly run new python code from blender with hotkey:
 1) Open python script file in VS Code
-2) Open VS Code's Command Palette (CTL/CMD + SHIFT + P) and type in "Blender: Start"
-4) In Blender, open up your in-progress project (if you have one)
-5) To define a custom hotkey for running your scrip in VS Code, in VS Code's Command Palette, start typig in "Blend: Run Script" and click on the settings gear icon to the right of "Blend: Run Script" (see image below)
+2) Open VS Code's Command Palette (CTL/CMD + SHIFT + P), type in and select "Blender: Start"
+4) In Blender, open up a new project or an in-progress project if you have one
+5) To define a custom hotkey for running your script in VS Code, in VS Code's Command Palette, start typig in "Blend: Run Script" and click on the settings gear icon to the right of "Blend: Run Script" (see image below)
+6) Change the "Keybinding" to whatever hotkey you want to use for running the script
 
 <img width="491" alt="image" src="https://github.com/BillyMazotti/RefCOCO-Synthetic-3D/assets/96280520/f1b812cc-f343-44e3-a23b-842ad9d4db7d">
-
-  Change the "Keybinding" to whatever hotkey you want to use for running the script.
