@@ -242,6 +242,34 @@ def placeObjectOnPlane(planeName, objectName, objects_dict):
                                         
     bpy.data.objects[objectName].rotation_euler = [randX_theta,randY_theta,randZ_theta]
 
+def objects_in_fov():
+    """
+    objects in fov (can be occluded)
+    """
+    
+    camera = bpy.context.scene.camera
+    fov = camera.data.angle
+    location = camera.location
+    direction = camera.matrix_world.to_quaternion() @ Vector((0.0, 0.0, -1.0))
+    visible_objects = [obj for obj in bpy.context.scene.objects if not obj.hide_render]
+
+    # creeat list of all visible objects in fob
+    objects_in_fov = []
+    for obj in visible_objects:
+        if obj.type != 'MESH' or not obj.visible_get(): 
+            continue #skip non mesh and non-visible objects
+        for v in obj.data.vertices:
+            vertex_world = obj.matrix_world @ v.co
+            to_vertex = vertex_world - location
+            angle_to_vertex = direction.angle(to_vertex)
+            if angle_to_vertex < fov / 2:
+                objects_in_fov.append(obj.name)
+                break
+            
+            
+    
+
+    return objects_in_fov
     
 
 def annotate_2Dand_3D_data_of_in_view_objects():
@@ -308,17 +336,12 @@ def annotate_2Dand_3D_data_of_in_view_objects():
             .
         ]
         
-
-    # segmentation:  type []] float round 2
-    # area: type flaot 64
-    # iscrowd: 0 or 1???
-    # image_id: type int
-    # bbox: []
-    # category_id: 
-    # id: ???
     """
     
-    None
+    
+    
+    object_in_fov_names = objects_in_fov()
+    print(object_in_fov_names)
     
 
 def spawn_object_with_geofence():
@@ -336,46 +359,28 @@ def spawn_object_with_geofence():
 
 
 objects_dict = {}
-objects_dict["pepsi_up"] = {}
-objects_dict["pepsi_up"]["rot_limits"] = np.array([[0,0],[0,0],[0,360]])
-objects_dict["pepsi_side"] = {}
-objects_dict["pepsi_side"]["rot_limits"] = np.array([[0,0],[0,0],[0,360]])
+objects_dict["obj_pepsi_up"] = {}
+objects_dict["obj_pepsi_up"]["rot_limits"] = np.array([[0,0],[0,0],[0,360]])
+objects_dict["obj_pepsi_side"] = {}
+objects_dict["obj_pepsi_side"]["rot_limits"] = np.array([[0,0],[0,0],[0,360]])
                             
-placeObjectOnPlane("Object Plane", "pepsi_up", objects_dict)  
-placeObjectOnPlane("Object Plane", "pepsi_side", objects_dict)   
+placeObjectOnPlane("Object Plane", "obj_pepsi_up", objects_dict)  
+placeObjectOnPlane("Object Plane", "obj_pepsi_side", objects_dict)   
 
 
 #randomly place camera in a volume defined by a cube mesh
 placeCameraInVolume("CameraVolume",roll=0)
 
 
-def objects_in_fov():
-    """
-    objects in fov (can be occluded)
-    """
-    
-    camera = bpy.context.scene.camera
-    fov = camera.data.angle
-    location = camera.location
-    direction = camera.matrix_world.to_quaternion() @ Vector((0.0, 0.0, -1.0))
-    visible_objects = [obj for obj in bpy.context.scene.objects if not obj.hide_render]
 
-    objects_in_fov = []
-    for obj in visible_objects:
-        print(obj)
-        if obj.type != 'MESH' or not obj.visible_get():
-            continue
-        for v in obj.data.vertices:
-            vertex_world = obj.matrix_world @ v.co
-            to_vertex = vertex_world - location
-            angle_to_vertex = direction.angle(to_vertex)
-            if angle_to_vertex < fov / 2:
-                objects_in_fov.append(obj.name)
-                break
 
-    return objects_in_fov
 
-print(objects_in_fov())
+
+annotate_2Dand_3D_data_of_in_view_objects()
+
+
+
+print("\nhello there\n")
 
                     
 
@@ -383,4 +388,3 @@ print(objects_in_fov())
     
     
         
-print("\nhello there")
