@@ -317,9 +317,6 @@ placeCameraInVolume("CameraVolume",roll=0)
 
 
 
-
-
-
 annotate_2Dand_3D_data_of_in_view_objects()
 
 
