@@ -8,8 +8,8 @@ from mathutils import Euler, Color
 from pathlib import Path
 import random
 from mathutils import Vector
+import os
 
- 
 def randomly_rotate_object(obj_to_change):
     
     """
@@ -244,7 +244,9 @@ def placeObjectOnPlane(planeName, objectName, objects_dict):
 
 def objects_in_fov():
     """
-    objects in fov (can be occluded)
+    Retern a list of all coco object names
+    output:
+
     """
     
     camera = bpy.context.scene.camera
@@ -257,7 +259,9 @@ def objects_in_fov():
     objects_in_fov = []
     for obj in visible_objects:
         if obj.type != 'MESH' or not obj.visible_get(): 
-            continue #skip non mesh and non-visible objects
+            continue    # skip non mesh and non-visible objects
+        if obj.name.split("_")[0] != 'obj':
+            continue    # skip objects that don't start with obj_
         for v in obj.data.vertices:
             vertex_world = obj.matrix_world @ v.co
             to_vertex = vertex_world - location
@@ -266,16 +270,14 @@ def objects_in_fov():
                 objects_in_fov.append(obj.name)
                 break
             
-            
-    
-
+    objects_in_fov.sort()
     return objects_in_fov
     
 
 def annotate_2Dand_3D_data_of_in_view_objects():
     """
     Determine which objects are in view and are showing at least X pixels? in FOV?
-    - Step 1: find all aboves in fov using fov script (still could be occluded)
+    - Step 1: find all objects in fov using fov script (still could be occluded)
     - Step 2: create mask of each object in FOV and if there's at least 1 pixel then annotate the object
         https://www.youtube.com/watch?v=xeprI8hJAH8
     - Step 3: get the object's distance from the camera using object's centroid location 
@@ -283,9 +285,24 @@ def annotate_2Dand_3D_data_of_in_view_objects():
     """
     
     
-    
+    # retreive objects in the field of view
     object_in_fov_names = objects_in_fov()
-    print(object_in_fov_names)
+    
+    # assign pass_idx to all subassembly parts
+    min_pass_idx = 1
+    
+    previous_obj = object_in_fov_names[0]
+    for obj in object_in_fov_names:
+        if previous_obj.split("_")[0:5] == obj.split("_")[0:5]:
+            bpy.data.objects[obj].pass_index = min_pass_idx
+        else:
+            min_pass_idx += 1
+            bpy.data.objects[obj].pass_index = min_pass_idx
+        previous_obj = obj
+        
+        print(obj)
+        print(bpy.data.objects[obj].pass_index)
+        
     
 
 def spawn_object_with_geofence():
@@ -302,26 +319,66 @@ def spawn_object_with_geofence():
 
 
 # roation limits = np.array([[min_x,max_x],[min_y,max_y],[min_z,max_y]])
-objects_dict = {}
-objects_dict["obj_pepsi_up"] = {}
-objects_dict["obj_pepsi_up"]["rot_limits"] = np.array([[0,0],[0,0],[0,360]])
-objects_dict["obj_pepsi_side"] = {}
-objects_dict["obj_pepsi_side"]["rot_limits"] = np.array([[0,0],[0,0],[0,360]])
+# objects_dict = {}
+# objects_dict["obj_pepsi_up"] = {}
+# objects_dict["obj_pepsi_up"]["rot_limits"] = np.array([[0,0],[0,0],[0,360]])
+# objects_dict["obj_pepsi_side"] = {}
+# objects_dict["obj_pepsi_side"]["rot_limits"] = np.array([[0,0],[0,0],[0,360]])
                             
-placeObjectOnPlane("Object Plane", "obj_pepsi_up", objects_dict)  
-placeObjectOnPlane("Object Plane", "obj_pepsi_side", objects_dict)   
+# placeObjectOnPlane("Object Plane", "obj_pepsi_up", objects_dict)  
+# placeObjectOnPlane("Object Plane", "obj_pepsi_side", objects_dict)   
 
-
-#randomly place camera in a volume defined by a cube mesh
 placeCameraInVolume("CameraVolume",roll=0)
 
 
 
-annotate_2Dand_3D_data_of_in_view_objects()
 
+# RENDER SETTINGS
+RENDER = True
+bpy.data.scenes["Scene"].cycles.samples = 10
 
+if RENDER:
+    num_enviornmetns = 1
+    start_idx = 0
+    renders_per_environment = 10
+    start_time = time.time()
 
-print("\nhello there\n")
+    total_render_count = num_enviornmetns * renders_per_environment
+
+    renter_rates = np.zeros(total_render_count)
+
+    print("STARTING DATASET GENERATION...")
+    for i in range(start_idx, start_idx + renders_per_environment):
+        
+        # randomly place camera in a volume defined by a cube mesh
+        placeCameraInVolume("CameraVolume",roll=0)
+        
+        # randomly place objects on plane defined by a plane mesh
+        # TODO
+        
+        
+        # set pass index for all objects to 0
+        for obj in bpy.data.objects:
+            bpy.data.objects[obj.name].pass_index = 0
+
+        annotate_2Dand_3D_data_of_in_view_objects()
+
+        # render image
+        bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{str(i).zfill(6)}.png"
+        bpy.ops.render.render(write_still=True)
+        
+        # save sementation image
+        os.rename(os.getcwd() + "/data/Segmentation0116.png", os.getcwd() + f"/data/masks/{str(i).zfill(6)}.png")
+        
+        # render rate statistics
+        renter_rates[i] =  (time.time() - start_time) / (i + 1)
+        seconds_remaining = renter_rates[i] * (total_render_count - i - 1)
+        print(f'\nRemaining Time: {time.strftime("%H:%M:%S",time.gmtime(seconds_remaining))}s')
+        print(f'Current | Avg | Max | Min Renter Rates (s/img): {round(renter_rates[i],2)} | {round(renter_rates[:i+1].mean(),2)} | {round(renter_rates[:i+1].max(),2)} | {round(renter_rates[:i+1].min(),2)}')
+
+    print("DATASET GENERATION COMPLETE!")
+
+# print("\nhello there\n")
 
                     
 

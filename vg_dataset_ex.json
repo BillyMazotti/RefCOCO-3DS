@@ -1,0 +1,74 @@
+[
+    {
+      "filename": "image1.jpg",
+      "height": 600,
+      "width": 800,
+      "detection": {
+        "instances": [
+          {
+            "segmentation": [[1,2],...,[3,4]],
+            "bbox": [100, 200, 300, 400],
+            "label": 16,
+            "category": "dog"
+          },
+          {
+            "segmentation": [[1,2],...,[3,4]],
+            "bbox": [450, 220, 550, 320],
+            "label": 15,
+            "category": "cat"
+          }
+        ]
+      },
+      "grounding": {
+        "caption": "A dog and a cat sitting on the floor",
+        "regions": [
+          {
+            "segmentation": [[1,2],...,[3,4]],
+            "bbox": [100, 200, 300, 400],
+            "phrase": "A dog sitting"
+          },
+          {
+            "segmentation": [[1,2],...,[3,4]],
+            "bbox": [450, 220, 550, 320],
+            "phrase": "A cat sitting"
+          }
+        ]
+      }
+    },
+    {
+      "filename": "image2.jpg",
+      "height": 720,
+      "width": 1280,
+      "detection": {
+        "instances": [
+          {
+            "segmentation": [[1,2],...,[3,4]],
+            "bbox": [262, 410, 323, 538],
+            "label": 47,
+            "category": "apple"
+          },
+          {
+            "segmentation": [[1,2],...,[3,4]],
+            "bbox": [764, 263, 852, 371],
+            "label": 39,
+            "category": "bottle"
+          }
+        ]
+      },
+      "grounding": {
+        "caption": "An apple and a bottle on the table",
+        "regions": [
+          {
+            "segmentation": [[1,2],...,[3,4]],
+            "bbox": [262, 410, 323, 538],
+            "phrase": "An apple"
+          },
+          {
+            "segmentation": [[1,2],...,[3,4]],
+            "bbox": [764, 263, 852, 371],
+            "phrase": "A bottle on the table"
+          }
+        ]
+      }
+    }
+  ]
