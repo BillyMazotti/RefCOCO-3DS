@@ -1,0 +1,22 @@
+{
+  "obj_laptop_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 1
+  },
+  "obj_remote_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 1
+  },
+  "obj_remote_0_ort_1": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_phone_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_phone_0_ort_1": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  }
+}

@@ -1,14 +1,69 @@
+import sys, os
+
+paths = ['/Users/billymazotti/miniforge3/lib/python3.9/site-packages/',
+         os.getcwd()]
+
+print()
+print(os.path.dirname(sys.executable))
+
+for path in paths:
+    sys.path.append(path)
+
 import bpy
 import numpy as np
 import math
 from math import pi as PI
 import random
 import time
-from mathutils import Euler, Color
+from mathutils import Euler, Color, Vector
 from pathlib import Path
 import random
-from mathutils import Vector
-import os
+import cv2
+
+from shapely.geometry import Polygon
+from mathutils.bvhtree import BVHTree
+import matplotlib.pyplot as plt
+
+from importlib import reload
+import roated_rect
+reload(roated_rect)
+from roated_rect import RRect_center
+import json
+
+def add_polygons(contour_of_interest,polygon_list):
+    
+    # add polygon if first
+    if len(polygon_list) == 0:
+        polygon_list += (contour_of_interest,)
+        print("First Polygon Accepted")
+        return polygon_list, True
+    
+    # check to see if contour_of_interst intersects with any contours in polygon_list
+    candidate_polygon = Polygon(contour_of_interest.reshape(-1,2))
+    
+    for i in range(len(polygon_list)):
+        polygon_i = polygon_list[i].reshape(-1,2)
+        
+        ### DEBUGGING OCCLUSIONS
+        # polygon_i_visual = np.vstack((polygon_i,polygon_i[0,:]))
+        # coi_visual = contour_of_interest.reshape(-1,2)
+        # coi_visual = np.vstack((coi_visual,coi_visual[0,:]))
+        
+        # plt.figure()
+        # plt.plot(polygon_i[:,0],polygon_i[:,1])
+        # plt.plot(coi[:,0],coi[:,1])
+        # ax = plt.gca()
+        # ax.set_aspect('equal', adjustable='box')
+        # plt.savefig('test_image.png')
+
+        
+        if candidate_polygon.intersects(Polygon(polygon_i)):
+            return polygon_list, False
+    
+    # if we looked through all polgons without intersection, add polygon to list
+    polygon_list += (contour_of_interest,)
+    return polygon_list, True
+
 
 def randomly_rotate_object(obj_to_change):
     
@@ -127,8 +182,6 @@ def positionCamera(x_pos, y_pos, z_pos, roll_deg):
     
     # set specific axis to point up
     bpy.ops.object.constraint_add(type='TRACK_TO')
-#    bpy.context.object.constraints["Track To"].target = bpy.data.objects["CameraTarget"]
-#    bpy.context.object.constraints["Track To"].up_axis = 'UP_Y'
     bpy.data.objects["Camera"].constraints["Track To"].target = bpy.data.objects["CameraTarget"]
     bpy.data.objects["Camera"].constraints["Track To"].up_axis = 'UP_Y'
     bpy.ops.constraint.apply(constraint="Track To", owner='OBJECT')
@@ -177,9 +230,44 @@ def placeCameraInVolume(cubeMeshName,roll):
                             step = 1) / 1000
     
     positionCamera(randX, randY, randZ, roll)
-    
 
-def placeObjectOnPlane(planeName, objectName, objects_dict):
+def generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,objectName):
+    
+    # genrate random x,y,z point within the volume for camera placement
+    randX = random.randrange(start = object_plane_limits_mm[0,0],
+                            stop = object_plane_limits_mm[1,0],
+                            step = 1) / 1000
+    randY = random.randrange(start = object_plane_limits_mm[0,1],
+                            stop = object_plane_limits_mm[1,1],
+                            step = 1) / 1000    
+    z_pos = centroidXYZ[2]                    
+            
+    # generate random orientation wihting rotaiton limits
+    if (objects_dict[objectName]["rot_limits"][0][1] - \
+            objects_dict[objectName]["rot_limits"][0][0] == 0):
+        randX_theta = objects_dict[objectName]["rot_limits"][0][0]
+    else:
+        randX_theta = random.randrange(start = objects_dict[objectName]["rot_limits"][0][0],
+                                        stop = objects_dict[objectName]["rot_limits"][0][1],
+                                        step = 1)
+    if (objects_dict[objectName]["rot_limits"][1][1] - \
+            objects_dict[objectName]["rot_limits"][1][0] == 0):
+        randY_theta = objects_dict[objectName]["rot_limits"][0][0]
+    else:
+        randY_theta = random.randrange(start = objects_dict[objectName]["rot_limits"][1][0],
+                                        stop = objects_dict[objectName]["rot_limits"][1][1],
+                                        step = 1)
+    if (objects_dict[objectName]["rot_limits"][2][1] - \
+            objects_dict[objectName]["rot_limits"][2][0] == 0):
+        randZ_theta = objects_dict[objectName]["rot_limits"][0][0]
+    else:
+        randZ_theta = random.randrange(start = objects_dict[objectName]["rot_limits"][2][0],
+                                        stop = objects_dict[objectName]["rot_limits"][2][1],
+                                        step = 1)
+        
+    return randX, randY, z_pos, randX_theta, randY_theta, randZ_theta
+
+def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footprints, max_attempts=10):
     """
         assmes object is small enough to fit in plane
         assumes object has local z vecotr pointing up 
@@ -194,6 +282,8 @@ def placeObjectOnPlane(planeName, objectName, objects_dict):
     # define the x,y limits of the plane
     centroidXYZ = np.array(bpy.data.objects[planeName].location)
     planeDimensionsXYZ = np.array(bpy.data.objects[planeName].dimensions)
+    
+    # look through all subparts to find 
     objectDimensionsXYZ = np.array(bpy.data.objects[objectName].dimensions)
    
     max_object_length = max(objectDimensionsXYZ[0],objectDimensionsXYZ[1])
@@ -204,47 +294,43 @@ def placeObjectOnPlane(planeName, objectName, objects_dict):
     
     object_plane_limits_mm = (object_plane_limits * 1000).astype(int)
     
-    # genrate random x,y,z point within the volume for camera placement
-    randX = random.randrange(start = object_plane_limits_mm[0,0],
-                            stop = object_plane_limits_mm[1,0],
-                            step = 1) / 1000
-    randY = random.randrange(start = object_plane_limits_mm[0,1],
-                            stop = object_plane_limits_mm[1,1],
-                            step = 1) / 1000
-    z_pos = centroidXYZ[2]                    
-#    positionObject()
+    attempt_iter = 0
+    while attempt_iter < max_attempts:
+        # propose random object pose [m]
+        randX, randY, z_pos, randX_theta, randY_theta, randZ_theta = \
+            generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,objectName)
+
+        print(randZ_theta)
+        
+        # Compute Footprints
+        (W_mm,H_mm) = (objectDimensionsXYZ[0]*1000,objectDimensionsXYZ[1]*1000)
+        ang = -randZ_theta #degrees
+        P0_mm = (randX*1000,randY*1000)
+        rr = RRect_center(P0_mm,(W_mm,H_mm),ang)
+        contour_mm = np.array([[[rr.verts[0][0],rr.verts[0][1]]],
+                                [[rr.verts[1][0],rr.verts[1][1]]],
+                                [[rr.verts[2][0],rr.verts[2][1]]],
+                                [[rr.verts[3][0],rr.verts[3][1]]]])
+        
+        placed_object_footprints, new_polygon_added = add_polygons(contour_mm,placed_object_footprints)
+        
+        if new_polygon_added:
+            # check to see if pose is valid with respect to currently placed objects
+            bpy.data.objects[objectName].location = [randX, randY, z_pos]                             
+            bpy.data.objects[objectName].rotation_euler = [randX_theta*math.pi/180,
+                                                            randY_theta*math.pi/180,
+                                                            randZ_theta*math.pi/180]
+            print(f"Iter {attempt_iter}: Accepted Polygon")
+            break
+        
+        print(f"Iter {attempt_iter}: Rejected Polygon")
+        attempt_iter += 1
     
-    
-    bpy.data.objects[objectName].location = [randX, randY, z_pos]
-    
-    # set orientation
-    if (objects_dict[objectName]["rot_limits"][0,1] - \
-            objects_dict[objectName]["rot_limits"][0,0] == 0):
-        randX_theta = objects_dict[objectName]["rot_limits"][0,0]
-    else:
-        randX_theta = random.randrange(start = objects_dict[objectName]["rot_limits"][0,0],
-                                        stop = objects_dict[objectName]["rot_limits"][0,1],
-                                        step = 1)
-    if (objects_dict[objectName]["rot_limits"][1,1] - \
-            objects_dict[objectName]["rot_limits"][1,0] == 0):
-        randY_theta = objects_dict[objectName]["rot_limits"][0,0]
-    else:
-        randY_theta = random.randrange(start = objects_dict[objectName]["rot_limits"][1,0],
-                                        stop = objects_dict[objectName]["rot_limits"][1,1],
-                                        step = 1)
-    if (objects_dict[objectName]["rot_limits"][2,1] - \
-            objects_dict[objectName]["rot_limits"][2,0] == 0):
-        randZ_theta = objects_dict[objectName]["rot_limits"][0,0]
-    else:
-        randZ_theta = random.randrange(start = objects_dict[objectName]["rot_limits"][2,0],
-                                        stop = objects_dict[objectName]["rot_limits"][2,1],
-                                        step = 1)
-                                        
-    bpy.data.objects[objectName].rotation_euler = [randX_theta,randY_theta,randZ_theta]
+    return placed_object_footprints
 
 def objects_in_fov():
     """
-    Retern a list of all coco object names
+    Retern a list of all coco object namesg
     output:
 
     """
@@ -272,7 +358,8 @@ def objects_in_fov():
             
     objects_in_fov.sort()
     return objects_in_fov
-    
+
+
 
 def annotate_2Dand_3D_data_of_in_view_objects():
     """
@@ -288,59 +375,173 @@ def annotate_2Dand_3D_data_of_in_view_objects():
     # retreive objects in the field of view
     object_in_fov_names = objects_in_fov()
     
-    # assign pass_idx to all subassembly parts
-    min_pass_idx = 1
+    # assign pass index to each object
+    for IndexOB,obj in enumerate(object_in_fov_names):
+        IndexOB += 1
+        bpy.data.objects[obj].pass_index = IndexOB
+        
+    # get each objects 3D location wrt the camera
     
-    previous_obj = object_in_fov_names[0]
-    for obj in object_in_fov_names:
-        if previous_obj.split("_")[0:5] == obj.split("_")[0:5]:
-            bpy.data.objects[obj].pass_index = min_pass_idx
+def move_away_all_objects(location):
+    for obj in bpy.data.objects:
+        if obj.name.split("_")[0] == "obj": 
+            bpy.data.objects[obj.name].location = location
+            bpy.data.objects[obj.name].rotation_euler[2] = 0.0
+
+def relative_location(obj1_name, obj2_name):
+    
+    """
+    inputs:
+        obj1: primary object
+        obj2: the object whose location we want with respect to obj1's local frame
+    outputs:
+        relative_location = [x, y, z]
+    """
+    cam = bpy.data.objects[obj1_name]
+    obj = bpy.data.objects[obj2_name]
+    mat_rel = cam.matrix_world.inverted() @ obj.matrix_world
+    relative_location = -np.array(mat_rel.translation)
+
+    return relative_location  
+
+def deselect_all_objects():
+    """ Deselect all objects
+    """
+    # deselect all objects
+    bpy.ops.object.select_all(action='DESELECT')  
+
+def select_object(obj_name):
+    """ Select a specific object; ensure that no other objecrts are
+        selected
+
+    Args:
+        obj_name (string): name a object to be selected; found
+                        using bpy.data.objects["object_name"].name
+    """
+    deselect_all_objects()
+    # select object of interest
+    bpy.data.objects[obj_name].select_set(True) 
+    current_state = bpy.data.objects[obj_name].select_get()
+    bpy.context.view_layer.objects.active = bpy.data.objects[obj_name]
+
+def duplicate_object(obj_name):
+    """ Duplicate an object; name should end with .###
+        (e.g. if original object ot be duplicated is named "pepsi_can"
+        then the duplicated object will have the name "pepsi_can.001")
+
+    Args:
+        obj_name (string): name a object to be duplicated
+
+    Returns:
+        string: name of the newly duplicated object
+    """
+    select_object(obj_name)
+    bpy.ops.object.duplicate()
+    new_object_name = bpy.context.selected_objects[0].name
+    
+    return new_object_name
+    
+def delete_all_duplicate_objects():
+    """ Delete all duplicated objects in the entire Scene Collection
+    
+        Assumptions:
+        - all objects to be deleted must have names starting with obj_
+        - all original objects (non-duplicates) must not have a "." in 
+        their names
+        - all duplicates must have a since "." in their names
+    """
+    for obj in bpy.data.objects:
+        if obj.name.split("_")[0] == 'obj' and len(obj.name.split("."))==2:
+            select_object(obj.name)
+            bpy.ops.object.delete()
+                    
+                    
+def dictionary_for_object_plane(objects_json_file_path):
+    """ Generate Dictinary for Specified Object Plane
+
+    Args:
+        objects_json_file_path (string): path to json file
+        with object plane specifications 
+
+    Returns:
+        dict: dictionary of all objects and their rotation
+        limits
+    """
+    
+    with open(objects_json_file_path) as json_file:
+        objects_dict_original = json.load(json_file)
+    
+    objects_dict_for_object_plane = {}
+    
+    # generate duplicate objects specified by json file
+    for obj in objects_dict_original:
+        if objects_dict_original[obj]["max_number"] > 0:
+            
+            # add the original to the object plane's dictionary
+            objects_dict_for_object_plane[obj] = {}
+            objects_dict_for_object_plane[obj]["rot_limits"] = objects_dict_original[obj]["rot_limits"]
+            
+            # add duplicates to the object plane's dictionary
+            number_of_objects_to_duplicate = objects_dict_original[obj]["max_number"] - 1
+            for i in range(number_of_objects_to_duplicate):
+                new_object_name = duplicate_object(obj)
+                
+                # add to dictionary (will eventually replace the list)
+                objects_dict_for_object_plane[new_object_name] = {}
+                objects_dict_for_object_plane[new_object_name]["rot_limits"] = objects_dict_original[obj]["rot_limits"]
+                
         else:
-            min_pass_idx += 1
-            bpy.data.objects[obj].pass_index = min_pass_idx
-        previous_obj = obj
+            pass
         
-        print(obj)
-        print(bpy.data.objects[obj].pass_index)
-        
-    
-
-def spawn_object_with_geofence():
-    """
-    Priority Number 2
-    
-    Methods
-    - use occupancy grid with footprints
-    - give max number of new attemps and check for collisions
-    """
-    
-    None
-    
-
-
-# roation limits = np.array([[min_x,max_x],[min_y,max_y],[min_z,max_y]])
-# objects_dict = {}
-# objects_dict["obj_pepsi_up"] = {}
-# objects_dict["obj_pepsi_up"]["rot_limits"] = np.array([[0,0],[0,0],[0,360]])
-# objects_dict["obj_pepsi_side"] = {}
-# objects_dict["obj_pepsi_side"]["rot_limits"] = np.array([[0,0],[0,0],[0,360]])
-                            
-# placeObjectOnPlane("Object Plane", "obj_pepsi_up", objects_dict)  
-# placeObjectOnPlane("Object Plane", "obj_pepsi_side", objects_dict)   
-
-placeCameraInVolume("CameraVolume",roll=0)
+    return objects_dict_for_object_plane
 
 
 
+### TODO: Define Camera Volumes ###########################################
 
-# RENDER SETTINGS
-RENDER = True
+camera_volumes = ["CameraVolume1",
+                  "CameraVolume2"]
+
+###########################################################################
+
+
+# select camera volume probabilistically based on volume
+volume_sizes = np.zeros((len(camera_volumes)))
+for i,volume in enumerate(camera_volumes):
+    volume_sizes[i] = np.array(bpy.data.objects[volume].dimensions).prod()
+
+volume_size_percentages = volume_sizes / volume_sizes.sum()
+camera_volume_selected = np.random.choice(np.arange(0,len(camera_volumes),1), 
+                                              size=1, replace=True, p=volume_size_percentages)[0]
+placeCameraInVolume(camera_volumes[camera_volume_selected], roll=0)
+
+# delete all duplicate objects and place all objects outside of envionrment
+delete_all_duplicate_objects()
+move_away_all_objects([5,5,0])
+
+
+object_plane_dictionaries = {}
+### TODO: efine Object Plane dictionaries here ############################
+# To add object specifications for pariticular object plane, write
+object_plane_dictionaries["ObjectPlane1"] = dictionary_for_object_plane("living_room_op1.json")
+object_plane_dictionaries["ObjectPlane2"] = dictionary_for_object_plane("living_room_op2.json")
+
+
+###########################################################################
+
+
+
+pose = relative_location("Camera","obj_phone_0_ort_0")
+print(pose)
+
+# RENDER SETTINGS~
+RENDER = False
 bpy.data.scenes["Scene"].cycles.samples = 10
 
 if RENDER:
     num_enviornmetns = 1
     start_idx = 0
-    renders_per_environment = 10
+    renders_per_environment = 1
     start_time = time.time()
 
     total_render_count = num_enviornmetns * renders_per_environment
@@ -351,7 +552,7 @@ if RENDER:
     for i in range(start_idx, start_idx + renders_per_environment):
         
         # randomly place camera in a volume defined by a cube mesh
-        placeCameraInVolume("CameraVolume",roll=0)
+        # placeCameraInVolume("CameraVolume",roll=0)
         
         # randomly place objects on plane defined by a plane mesh
         # TODO
@@ -367,8 +568,31 @@ if RENDER:
         bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{str(i).zfill(6)}.png"
         bpy.ops.render.render(write_still=True)
         
+        
+        img_rgb = cv2.imread(bpy.context.scene.render.filepath) 
+        seg = cv2.imread("data/Segmentation0116.png")
+        number_of_annotations = seg.max()
+
+        for IndexOB in range(number_of_annotations):
+            IndexOB+=1
+            mask = np.zeros_like(seg)
+            mask[seg == IndexOB] = 255
+
+            imgray2 = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+            ret, thresh = cv2.threshold(imgray2, 0,255, cv2.THRESH_BINARY)
+            contour,hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # area = print(cv2.contourArea(contour[0]))
+            cv2.drawContours(img_rgb, contour[0], -1, (0,255,0), 3)
+        
+        cv2.imshow(f"Image {str(i).zfill(6)}",img_rgb)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        
         # save sementation image
-        os.rename(os.getcwd() + "/data/Segmentation0116.png", os.getcwd() + f"/data/masks/{str(i).zfill(6)}.png")
+        # os.rename(os.getcwd() + "/data/Segmentation0116.png", os.getcwd() + f"/data/masks/{str(i).zfill(6)}.png")
         
         # render rate statistics
         renter_rates[i] =  (time.time() - start_time) / (i + 1)
@@ -379,9 +603,6 @@ if RENDER:
     print("DATASET GENERATION COMPLETE!")
 
 # print("\nhello there\n")
-
-                    
-
 
     
     

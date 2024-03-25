@@ -41,12 +41,6 @@ for image_idx in range(number_of_masks):
         ret, thresh = cv2.threshold(imgray2, 0,255, cv2.THRESH_BINARY)
         contour,hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        # area = print(cv2.contourArea(contour[0]))
-        # cv2.drawContours(img_rgb, contour, -1, (0,255,0), 3)
-        # cv2.imshow(f"Image {str(image_idx).zfill(6)}",img_rgb)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-        
         # add segmentaiton and bbox data
         detection_instance_data = {}
         groudning_region_data = {}
