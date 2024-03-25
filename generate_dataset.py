@@ -1,4 +1,4 @@
-import sys, os
+import sys,os,time
 
 paths = ['/Users/billymazotti/miniforge3/lib/python3.9/site-packages/',
          os.getcwd()]
@@ -11,163 +11,28 @@ for path in paths:
 
 import bpy
 import numpy as np
-import math
-from math import pi as PI
-import random
-import time
-from mathutils import Euler, Color, Vector
-from pathlib import Path
-import random
 import cv2
-
 from shapely.geometry import Polygon
-from mathutils.bvhtree import BVHTree
 import matplotlib.pyplot as plt
-
-from importlib import reload
-import roated_rect
-reload(roated_rect)
-from roated_rect import RRect_center
 import json
 
-def add_polygons(contour_of_interest,polygon_list):
-    
-    # add polygon if first
-    if len(polygon_list) == 0:
-        polygon_list += (contour_of_interest,)
-        print("First Polygon Accepted")
-        return polygon_list, True
-    
-    # check to see if contour_of_interst intersects with any contours in polygon_list
-    candidate_polygon = Polygon(contour_of_interest.reshape(-1,2))
-    
-    for i in range(len(polygon_list)):
-        polygon_i = polygon_list[i].reshape(-1,2)
-        
-        ### DEBUGGING OCCLUSIONS
-        # polygon_i_visual = np.vstack((polygon_i,polygon_i[0,:]))
-        # coi_visual = contour_of_interest.reshape(-1,2)
-        # coi_visual = np.vstack((coi_visual,coi_visual[0,:]))
-        
-        # plt.figure()
-        # plt.plot(polygon_i[:,0],polygon_i[:,1])
-        # plt.plot(coi[:,0],coi[:,1])
-        # ax = plt.gca()
-        # ax.set_aspect('equal', adjustable='box')
-        # plt.savefig('test_image.png')
 
-        
-        if candidate_polygon.intersects(Polygon(polygon_i)):
-            return polygon_list, False
-    
-    # if we looked through all polgons without intersection, add polygon to list
-    polygon_list += (contour_of_interest,)
-    return polygon_list, True
+import random
+import math
+from math import pi
+from mathutils import Euler, Color, Vector
+from pathlib import Path
 
 
-def randomly_rotate_object(obj_to_change):
-    
-    """
-    Applies a rnadom rotation to an object
-    
-    """
-    
-    random_rot = (random.random() * 2 * math.pi,
-                    random.random() * 2 * math.pi,
-                    random.random() * 2 * math.pi)
-    obj_to_change.rotation_euler = Euler(random_rot, 'XYZ')
-    
-def randomly_change_color(material_to_change):
-    """
-    Changes the principled BSDF color of a material to a random color
-    """
-    color = Color()
-    hue = random.random()
-    color.hsv = (hue,1,1)
-    rgba = [color.r, color.g, color.b, 1]
-    material_to_change.node_tree.nodes['Principled BSDF'].inputs[0].default_value = rgba
-    
-def randomly_set_camera_position():
-    # Set the circular path position (0 to 100)
-    bpy.context.scene.objects['CameraContainer'].constraints['Follow Path'].offset = random.random() * 100
-    
-    # Set the arc path position (0 to 100, not sure why, to be honest)
-    bpy.context.scene.objects['CirclePathContainer'].constraints['Follow Path'].offset = random.random() * -100
-
-
-def generate_letter_dataset(num_train, num_val, num_test):
-    # Object names to render
-    obj_names = ['A','B','C']
-    obj_count = len(obj_names)
-
-    # Number of images to generate of each object for each split of the dataset
-    # Example: ('train',100) means generate 100 imagbes of each of 'A', 'B', & 'C' resulting in 300 training images
-    obj_renders_per_split = [('train',num_train),('val',num_val),('test',num_test)]
-
-    # Output path
-    output_path = Path("/Users/billymazotti/github/blender_shenanigans/DatasetGeneration/abc_test")
-
-    # For each dataset split (train/val/test), multiply the number of renders per object by
-    # the number of objects (3, since we ahve A, B, and C). Then compute the sum.
-    # This will be the total number of renders performed.
-    total_render_count = sum([obj_count * r[1] for r in obj_renders_per_split])
-
-    # Set all objecrts to be hidden in rendering
-    for name in obj_names:
-        bpy.context.scene.objects[name].hide_render = True
-        
-    # Tracks the starting image index for each object loop
-    start_idx = 0
-
-    # Keep trakc of start time (in seconds)
-    start_time = time.time()
-
-    # Loop through each split of the dataset
-    for split_name, renders_per_object in obj_renders_per_split:
-        print(f'Starting split: {split_name} | Total renders: {renders_per_object * obj_count}')
-        print("=============================")
-        
-        # Loop through the objects by name
-        for obj_name in obj_names:
-            print(f'Starting object: {split_name}/{obj_name}')
-            print('..........................')
-            
-            
-            # Get the next object and make it visible
-            obj_to_render = bpy.context.scene.objects[obj_name]
-            obj_to_render.hide_render = False
-            
-            # Loop through all image renders for this object
-            for i in range(start_idx, start_idx + renders_per_object):
-                # Change the object
-                randomly_rotate_object(obj_to_render)
-                randomly_change_color(obj_to_render.material_slots[0].material)
-                
-                # Log status
-                print(f'Rendering image {i + 1} or {total_render_count}')
-                seconds_per_render = (time.time() - start_time) / (i + 1)
-                seconds_remaining = seconds_per_render * (total_render_count - i - 1)
-                print(f'Estimated time remaining: {time.strftime("%H:%M:%S", time.gmtime(seconds_remaining))}')
-                
-                # Update file path and render
-                bpy.context.scene.render.filepath = str(output_path / split_name / obj_name / f'{str(i).zfill(6)}.png')
-                bpy.ops.render.render(write_still=True)
-                
-            # Hide the object, we're done with it
-            obj_to_render.hide_render = True
-                
-            
-            # update the starting image index
-            start_idx += renders_per_object
-
-    print(f'Total Generation time: {time.strftime("%H:%M:%S", time.gmtime(time.time() - start_time))}')
+# Make sure changes to local functions are being accounted for
+import rotated_rect
+from importlib import reload
+reload(rotated_rect)
+from rotated_rect import RRect_center
 
 
 
-    # Set all objects to be visible in rendering
-    for name in obj_names:
-        bpy.context.scene.objects[name].hide_render = False
-        
+
         
 def positionCamera(x_pos, y_pos, z_pos, roll_deg):
     """
@@ -198,7 +63,7 @@ def positionCamera(x_pos, y_pos, z_pos, roll_deg):
     # add roll to camera
     bpy.data.objects["Camera"].rotation_mode = 'ZYX'
     bpy.data.objects["Camera"].rotation_euler[2] = upright_camera_orientation[2] + \
-                                                        roll_deg*PI/180
+                                                        roll_deg*pi/180
 
 
 
@@ -267,6 +132,39 @@ def generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,
         
     return randX, randY, z_pos, randX_theta, randY_theta, randZ_theta
 
+def add_polygons(contour_of_interest,polygon_list):
+    
+    # add polygon if first
+    if len(polygon_list) == 0:
+        polygon_list += (contour_of_interest,)
+        # print("First Polygon Accepted")
+        return polygon_list, True
+    
+    # check to see if contour_of_interst intersects with any contours in polygon_list
+    candidate_polygon = Polygon(contour_of_interest.reshape(-1,2))
+    
+    for i in range(len(polygon_list)):
+        polygon_i = polygon_list[i].reshape(-1,2)
+        
+        ### DEBUGGING OCCLUSIONS
+        # polygon_i_visual = np.vstack((polygon_i,polygon_i[0,:]))
+        # coi_visual = contour_of_interest.reshape(-1,2)
+        # coi_visual = np.vstack((coi_visual,coi_visual[0,:]))
+        
+        # plt.figure()
+        # plt.plot(polygon_i[:,0],polygon_i[:,1])
+        # plt.plot(coi[:,0],coi[:,1])
+        # ax = plt.gca()
+        # ax.set_aspect('equal', adjustable='box')
+        # plt.savefig('test_image.png')
+        
+        if candidate_polygon.intersects(Polygon(polygon_i)):
+            return polygon_list, False
+    
+    # if we looked through all polgons without intersection, add polygon to list
+    polygon_list += (contour_of_interest,)
+    return polygon_list, True
+
 def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footprints, max_attempts=10):
     """
         assmes object is small enough to fit in plane
@@ -278,7 +176,6 @@ def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footpr
     """
     
     # set position to ensure object is not hanging off plane
-    
     # define the x,y limits of the plane
     centroidXYZ = np.array(bpy.data.objects[planeName].location)
     planeDimensionsXYZ = np.array(bpy.data.objects[planeName].dimensions)
@@ -299,8 +196,6 @@ def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footpr
         # propose random object pose [m]
         randX, randY, z_pos, randX_theta, randY_theta, randZ_theta = \
             generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,objectName)
-
-        print(randZ_theta)
         
         # Compute Footprints
         (W_mm,H_mm) = (objectDimensionsXYZ[0]*1000,objectDimensionsXYZ[1]*1000)
@@ -320,10 +215,10 @@ def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footpr
             bpy.data.objects[objectName].rotation_euler = [randX_theta*math.pi/180,
                                                             randY_theta*math.pi/180,
                                                             randZ_theta*math.pi/180]
-            print(f"Iter {attempt_iter}: Accepted Polygon")
+            # print(f"Iter {attempt_iter}: Accepted Polygon")
             break
         
-        print(f"Iter {attempt_iter}: Rejected Polygon")
+        # print(f"Iter {attempt_iter}: Rejected Polygon")
         attempt_iter += 1
     
     return placed_object_footprints
@@ -496,14 +391,14 @@ def dictionary_for_object_plane(objects_json_file_path):
     return objects_dict_for_object_plane
 
 
-
 ### TODO: Define Camera Volumes ###########################################
+
 
 camera_volumes = ["CameraVolume1",
                   "CameraVolume2"]
 
-###########################################################################
 
+###########################################################################
 
 # select camera volume probabilistically based on volume
 volume_sizes = np.zeros((len(camera_volumes)))
@@ -519,16 +414,25 @@ placeCameraInVolume(camera_volumes[camera_volume_selected], roll=0)
 delete_all_duplicate_objects()
 move_away_all_objects([5,5,0])
 
-
 object_plane_dictionaries = {}
-### TODO: efine Object Plane dictionaries here ############################
-# To add object specifications for pariticular object plane, write
+### TODO: define Object Plane dictionaries here ###########################
+
+
 object_plane_dictionaries["ObjectPlane1"] = dictionary_for_object_plane("living_room_op1.json")
 object_plane_dictionaries["ObjectPlane2"] = dictionary_for_object_plane("living_room_op2.json")
 
 
 ###########################################################################
 
+placed_object_footprints = []
+max_attemps_per_placement = 10
+for object_plane in object_plane_dictionaries:
+    object_plane_dict = object_plane_dictionaries[object_plane]
+    for obj_name in object_plane_dict:
+        placeObjectOnPlane(object_plane, 
+                           obj_name, object_plane_dict, 
+                           placed_object_footprints, 
+                           max_attemps_per_placement)
 
 
 pose = relative_location("Camera","obj_phone_0_ort_0")
