@@ -162,7 +162,7 @@ def add_polygons(contour_of_interest,polygon_list):
     polygon_list += (contour_of_interest,)
     return polygon_list, True
 
-def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footprints, max_attempts=10):
+def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footprints, max_attempts):
     """
         assmes object is small enough to fit in plane
         assumes object has local z vecotr pointing up 
@@ -432,14 +432,11 @@ def placeObjectsOnPlanes(object_plane_dictionaries):
     """
     
     placed_object_footprints = []
-    max_attemps_per_placement = 10
+    max_attemps_per_placement = 100
     for object_plane in object_plane_dictionaries:
         object_plane_dict = object_plane_dictionaries[object_plane]
         for obj_name in object_plane_dict:
-            placeObjectOnPlane(object_plane, 
-                                                obj_name, object_plane_dict, 
-                                                placed_object_footprints, 
-                                                max_attemps_per_placement)
+            placeObjectOnPlane(object_plane,obj_name, object_plane_dict,placed_object_footprints,max_attemps_per_placement)
 
 
 def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_mapping,image_name):
@@ -482,10 +479,10 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
     
 
 
-TESTING = False
+TESTING = True
 
 camera_volumes = []
-### TODO: Define Camera Volumes ###########################################
+### Define Camera Volumes #################################################
 
 
 camera_volumes = ["CameraVolume1",
@@ -501,11 +498,18 @@ delete_all_duplicate_objects()
 move_away_all_objects([5,5,0])
 
 object_plane_dictionaries = {}
-### TODO: define Object Plane dictionaries here ###########################
+### Define Object Plane dictionaries here #################################
 
 
-object_plane_dictionaries["ObjectPlane1"] = dictionary_for_object_plane("living_room_op1.json")
-object_plane_dictionaries["ObjectPlane2"] = dictionary_for_object_plane("living_room_op2.json")
+object_plane_dictionaries["ObjectPlane1"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op1.json")
+object_plane_dictionaries["ObjectPlane2"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op2.json")
+# TODO: Need to fix the problem of not adding new objects for new planes; need to keep track of whether or not object has been duplicated;
+# if object has alredy be en duplicated then continue to duplicate objec for new objects on new plane
+# object_plane_dictionaries["ObjectPlane3"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json")
+# object_plane_dictionaries["ObjectPlane4"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json")
+# object_plane_dictionaries["ObjectPlane5"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json")
+# object_plane_dictionaries["ObjectPlane6"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json")
+# object_plane_dictionaries["ObjectPlane7"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json")
 
 
 ###########################################################################
@@ -514,26 +518,11 @@ if TESTING: placeObjectsOnPlanes(object_plane_dictionaries)
 if TESTING: 
     
     # set pass index for all objects to 0
-    for obj in bpy.data.objects:
-        bpy.data.objects[obj.name].pass_index = 0
-            
-    color_to_object_mapping = color_all_objects()
+    pass
     
-    # render image
-    bpy.data.scenes["Scene"].cycles.samples = 5
-    bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/000000.png"
-    bpy.ops.render.render(write_still=True)
-    
-    
-    rgb_img = cv2.imread(bpy.context.scene.render.filepath) 
-    segmentation_image = cv2.imread("data/Segmentation0116.png")
-    image_name = "testtest.png"
-    annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name)
-    
-    
-
+ 
 # RENDER SETTINGS
-RENDER = True
+RENDER = False
 bpy.data.scenes["Scene"].cycles.samples = 100
 
 if RENDER:
