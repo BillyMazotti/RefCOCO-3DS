@@ -3,9 +3,6 @@ import sys,os,time
 paths = ['/Users/billymazotti/miniforge3/lib/python3.9/site-packages/',
          os.getcwd()]
 
-print()
-print(os.path.dirname(sys.executable))
-
 for path in paths:
     sys.path.append(path)
 
@@ -38,8 +35,8 @@ def positionCamera(x_pos, y_pos, z_pos, roll_deg):
     """
     Moves the CameraTarget Object 
     """
-#    bpy.data.objects["Camera"].select_set(True)
-#    current_state = bpy.data.objects["Camera"].select_get()
+    bpy.data.objects["Camera"].select_set(True)
+    current_state = bpy.data.objects["Camera"].select_get()
     bpy.context.view_layer.objects.active = bpy.data.objects['Camera']
 
     # position camera to specified x,y,z location
@@ -230,13 +227,14 @@ def objects_in_fov():
 
     """
     
-    camera = bpy.context.scene.camera
+    camera = bpy.data.objects["Camera"]
     fov = camera.data.angle
     location = camera.location
     direction = camera.matrix_world.to_quaternion() @ Vector((0.0, 0.0, -1.0))
     visible_objects = [obj for obj in bpy.context.scene.objects if not obj.hide_render]
 
-    # creeat list of all visible objects in fob
+    
+    # creeat list of all visible objects in fov
     objects_in_fov = []
     for obj in visible_objects:
         if obj.type != 'MESH' or not obj.visible_get(): 
@@ -250,11 +248,29 @@ def objects_in_fov():
             if angle_to_vertex < fov / 2:
                 objects_in_fov.append(obj.name)
                 break
-            
+
     objects_in_fov.sort()
     return objects_in_fov
 
 
+def color_all_objects():
+    
+    visible_objects = [obj for obj in bpy.context.scene.objects if not obj.hide_render]
+    objects_in_scene_names = []
+    for obj in visible_objects:
+        if obj.name.split("_")[0] == 'obj':
+            objects_in_scene_names.append(obj.name)
+    
+    color_to_object_mapping = {}
+    for IndexOB,obj in enumerate(objects_in_scene_names):
+        IndexOB += 1
+        bpy.data.objects[obj].pass_index = IndexOB
+        color_to_object_mapping[IndexOB] = bpy.data.objects[obj].name
+        
+    return color_to_object_mapping
+    
+            
+    
 
 def annotate_2Dand_3D_data_of_in_view_objects():
     """
@@ -269,13 +285,13 @@ def annotate_2Dand_3D_data_of_in_view_objects():
     
     # retreive objects in the field of view
     object_in_fov_names = objects_in_fov()
+    print(object_in_fov_names)
     
     # assign pass index to each object
     for IndexOB,obj in enumerate(object_in_fov_names):
         IndexOB += 1
         bpy.data.objects[obj].pass_index = IndexOB
         
-    # get each objects 3D location wrt the camera
     
 def move_away_all_objects(location):
     for obj in bpy.data.objects:
@@ -295,8 +311,9 @@ def relative_location(obj1_name, obj2_name):
     cam = bpy.data.objects[obj1_name]
     obj = bpy.data.objects[obj2_name]
     mat_rel = cam.matrix_world.inverted() @ obj.matrix_world
-    relative_location = -np.array(mat_rel.translation)
-
+    relative_location = np.array(mat_rel.translation)
+    relative_location[2] *= -1  # invert z distance
+    
     return relative_location  
 
 def deselect_all_objects():
@@ -390,25 +407,94 @@ def dictionary_for_object_plane(objects_json_file_path):
         
     return objects_dict_for_object_plane
 
+def placeCameraInVolumes(camera_volumes):
+    """ Place the camera bpy.data.objects["Camera"] in one of multiple volumes
 
+    Args:
+        camera_volumes (list): All mesh volumes to be considred
+    """
+    
+    # select camera volume probabilistically based on volume
+    volume_sizes = np.zeros((len(camera_volumes)))
+    for i,volume in enumerate(camera_volumes):
+        volume_sizes[i] = np.array(bpy.data.objects[volume].dimensions).prod()
+
+    volume_size_percentages = volume_sizes / volume_sizes.sum()
+    camera_volume_selected = np.random.choice(np.arange(0,len(camera_volumes),1), 
+                                                size=1, replace=True, p=volume_size_percentages)[0]
+    placeCameraInVolume(camera_volumes[camera_volume_selected], roll=0)
+
+def placeObjectsOnPlanes(object_plane_dictionaries):
+    """ Place objects on multiple planes
+
+    Args:
+        object_plane_dictionaries (dict): Dictionary of objects for each plane
+    """
+    
+    placed_object_footprints = []
+    max_attemps_per_placement = 10
+    for object_plane in object_plane_dictionaries:
+        object_plane_dict = object_plane_dictionaries[object_plane]
+        for obj_name in object_plane_dict:
+            placeObjectOnPlane(object_plane, 
+                                                obj_name, object_plane_dict, 
+                                                placed_object_footprints, 
+                                                max_attemps_per_placement)
+
+
+def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_mapping,image_name):
+    
+    max_number_of_annotations = segmentation_image.max()
+    for IndexOB in range(max_number_of_annotations):
+        IndexOB+=1
+        if IndexOB in segmentation_image:
+            mask = np.zeros_like(segmentation_image)
+            mask[segmentation_image == IndexOB] = 255
+
+            imgray2 = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+            ret, thresh = cv2.threshold(imgray2, 0,255, cv2.THRESH_BINARY)
+            contour,hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            area = cv2.contourArea(contour[0])
+            segmentation_coords = contour[0].reshape(-1,2)
+            bbox_coords = np.array([[segmentation_coords[:,0].min(),segmentation_coords[:,1].min()],
+                                    [segmentation_coords[:,0].max(),segmentation_coords[:,1].max()]])
+            
+            cv2.drawContours(rgb_image, contour, -1, (0,255,0), 2)
+            cv2.rectangle(rgb_image, (bbox_coords[0,0],bbox_coords[0,1]), 
+                                        (bbox_coords[1,0],bbox_coords[1,1]), (255,0,0), 2) 
+            
+            
+            pose = relative_location("Camera",color_to_object_mapping[IndexOB])
+            bottom_of_tag_y = bbox_coords[1,1]+15 if bbox_coords[1,1]+20 < rgb_image.shape[0] else rgb_image.shape[0]
+            
+            sub_img = rgb_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120]
+            white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
+            res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
+            rgb_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120] = res
+            
+            cv2.putText(rgb_image, str([round(pose[0],3),round(pose[1],3),round(pose[2],3)]), 
+                        (int(bbox_coords[0,0]),int(bbox_coords[1,1]+ 10)), 
+                        cv2.FONT_HERSHEY_SIMPLEX , 0.3, (0,0,255), 1, cv2.LINE_AA) 
+
+        
+    cv2.imwrite(f"data/anno/{image_name}.png", rgb_image) 
+    
+
+
+TESTING = False
+
+camera_volumes = []
 ### TODO: Define Camera Volumes ###########################################
 
 
 camera_volumes = ["CameraVolume1",
-                  "CameraVolume2"]
+                "CameraVolume2"]
 
 
 ###########################################################################
+if TESTING: placeCameraInVolumes(camera_volumes)
 
-# select camera volume probabilistically based on volume
-volume_sizes = np.zeros((len(camera_volumes)))
-for i,volume in enumerate(camera_volumes):
-    volume_sizes[i] = np.array(bpy.data.objects[volume].dimensions).prod()
-
-volume_size_percentages = volume_sizes / volume_sizes.sum()
-camera_volume_selected = np.random.choice(np.arange(0,len(camera_volumes),1), 
-                                              size=1, replace=True, p=volume_size_percentages)[0]
-placeCameraInVolume(camera_volumes[camera_volume_selected], roll=0)
 
 # delete all duplicate objects and place all objects outside of envionrment
 delete_all_duplicate_objects()
@@ -423,87 +509,83 @@ object_plane_dictionaries["ObjectPlane2"] = dictionary_for_object_plane("living_
 
 
 ###########################################################################
+if TESTING: placeObjectsOnPlanes(object_plane_dictionaries)
 
-placed_object_footprints = []
-max_attemps_per_placement = 10
-for object_plane in object_plane_dictionaries:
-    object_plane_dict = object_plane_dictionaries[object_plane]
-    for obj_name in object_plane_dict:
-        placeObjectOnPlane(object_plane, 
-                           obj_name, object_plane_dict, 
-                           placed_object_footprints, 
-                           max_attemps_per_placement)
+if TESTING: 
+    
+    # set pass index for all objects to 0
+    for obj in bpy.data.objects:
+        bpy.data.objects[obj.name].pass_index = 0
+            
+    color_to_object_mapping = color_all_objects()
+    
+    # render image
+    bpy.data.scenes["Scene"].cycles.samples = 5
+    bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/000000.png"
+    bpy.ops.render.render(write_still=True)
+    
+    
+    rgb_img = cv2.imread(bpy.context.scene.render.filepath) 
+    segmentation_image = cv2.imread("data/Segmentation0116.png")
+    image_name = "testtest.png"
+    annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name)
+    
+    
 
-
-pose = relative_location("Camera","obj_phone_0_ort_0")
-print(pose)
-
-# RENDER SETTINGS~
-RENDER = False
-bpy.data.scenes["Scene"].cycles.samples = 10
+# RENDER SETTINGS
+RENDER = True
+bpy.data.scenes["Scene"].cycles.samples = 100
 
 if RENDER:
     num_enviornmetns = 1
     start_idx = 0
-    renders_per_environment = 1
+    renders_per_environment = 5
     start_time = time.time()
 
     total_render_count = num_enviornmetns * renders_per_environment
 
     renter_rates = np.zeros(total_render_count)
 
-    print("STARTING DATASET GENERATION...")
+    print("\n\n\nSTARTING DATASET GENERATION...")
     for i in range(start_idx, start_idx + renders_per_environment):
         
         # randomly place camera in a volume defined by a cube mesh
-        # placeCameraInVolume("CameraVolume",roll=0)
+        placeCameraInVolumes(camera_volumes)
+        time.sleep(0.01)
+        
+        # Reset enviornment 
+        move_away_all_objects([5,5,0])
         
         # randomly place objects on plane defined by a plane mesh
-        # TODO
-        
+        placeObjectsOnPlanes(object_plane_dictionaries)
         
         # set pass index for all objects to 0
         for obj in bpy.data.objects:
             bpy.data.objects[obj.name].pass_index = 0
-
-        annotate_2Dand_3D_data_of_in_view_objects()
+        
+        color_to_object_mapping = color_all_objects()
 
         # render image
-        bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{str(i).zfill(6)}.png"
+        image_name = f"{str(i).zfill(6)}"
+        bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{image_name}.png"
         bpy.ops.render.render(write_still=True)
         
         
-        img_rgb = cv2.imread(bpy.context.scene.render.filepath) 
-        seg = cv2.imread("data/Segmentation0116.png")
-        number_of_annotations = seg.max()
+        # annotate image
+        rgb_img = cv2.imread(bpy.context.scene.render.filepath) 
+        segmentation_image = cv2.imread("data/Segmentation0116.png")
 
-        for IndexOB in range(number_of_annotations):
-            IndexOB+=1
-            mask = np.zeros_like(seg)
-            mask[seg == IndexOB] = 255
-
-            imgray2 = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-            ret, thresh = cv2.threshold(imgray2, 0,255, cv2.THRESH_BINARY)
-            contour,hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            # area = print(cv2.contourArea(contour[0]))
-            cv2.drawContours(img_rgb, contour[0], -1, (0,255,0), 3)
-        
-        cv2.imshow(f"Image {str(i).zfill(6)}",img_rgb)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-        
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-        
-        # save sementation image
-        # os.rename(os.getcwd() + "/data/Segmentation0116.png", os.getcwd() + f"/data/masks/{str(i).zfill(6)}.png")
+        annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name)
+            
         
         # render rate statistics
         renter_rates[i] =  (time.time() - start_time) / (i + 1)
         seconds_remaining = renter_rates[i] * (total_render_count - i - 1)
         print(f'\nRemaining Time: {time.strftime("%H:%M:%S",time.gmtime(seconds_remaining))}s')
         print(f'Current | Avg | Max | Min Renter Rates (s/img): {round(renter_rates[i],2)} | {round(renter_rates[:i+1].mean(),2)} | {round(renter_rates[:i+1].max(),2)} | {round(renter_rates[:i+1].min(),2)}')
-
+        
+        
+        
     print("DATASET GENERATION COMPLETE!")
 
 # print("\nhello there\n")
