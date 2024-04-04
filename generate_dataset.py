@@ -550,7 +550,7 @@ if TESTING:
  
 # RENDER SETTINGS
 RENDER = True
-bpy.data.scenes["Scene"].cycles.samples = 5
+bpy.data.scenes["Scene"].cycles.samples = 100
 
 if RENDER:
     num_enviornmetns = 1
@@ -601,7 +601,7 @@ if RENDER:
         # render rate statistics
         renter_rates[i] =  (time.time() - start_time) / (i + 1)
         seconds_remaining = renter_rates[i] * (total_render_count - i - 1)
-        print(f'\nRemaining Time: {time.strftime("%H:%M:%S",time.gmtime(seconds_remaining))}s')
+        print(f'\nTotal Passed: {time.strftime("%H:%M:%S",time.gmtime(time.time()-start_time))} | Remaining Time: {time.strftime("%H:%M:%S",time.gmtime(seconds_remaining))}s')
         print(f'Current | Avg | Max | Min Renter Rates (s/img): {round(renter_rates[i],2)} | {round(renter_rates[:i+1].mean(),2)} | {round(renter_rates[:i+1].max(),2)} | {round(renter_rates[:i+1].min(),2)}')
         
         
