@@ -450,14 +450,35 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
 
             imgray2 = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
             ret, thresh = cv2.threshold(imgray2, 0,255, cv2.THRESH_BINARY)
-            contour,hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours,hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
-            area = cv2.contourArea(contour[0])
-            segmentation_coords = contour[0].reshape(-1,2)
-            bbox_coords = np.array([[segmentation_coords[:,0].min(),segmentation_coords[:,1].min()],
-                                    [segmentation_coords[:,0].max(),segmentation_coords[:,1].max()]])
+            convex_contour = contours[0]
             
-            cv2.drawContours(rgb_image, contour, -1, (0,255,0), 2)
+            number_of_contours = len(contours)
+            
+            if number_of_contours > 1:
+                warnings.warn(f"{number_of_contours} cotours found with the same pass index. \
+                    \n This suggests {number_of_contours-1} occlusions occured. \
+                    \n Will proceed to group these partial contours as one contour as a contex hull.")
+                
+                # Find the convex hull object for all contours
+                contours_appended = contours[0]
+                for ctr in range(number_of_contours-1):
+                    ctr += 1
+                    contours_appended = np.vstack((contours_appended,contours[ctr]))
+                                
+                convex_contour = cv2.convexHull(contours_appended)
+            
+            area = cv2.contourArea(contours[0])
+            
+            # draw green contour around object
+            segmentation_coords = contours[0].reshape(-1,2)
+            cv2.drawContours(rgb_image, contours, -1, (0,255,0), 2)
+            
+            # draw blue rectangle around object
+            bbox_seg_coords = convex_contour.reshape(-1,2)
+            bbox_coords = np.array([[bbox_seg_coords[:,0].min(),bbox_seg_coords[:,1].min()],
+                                    [bbox_seg_coords[:,0].max(),bbox_seg_coords[:,1].max()]])
             cv2.rectangle(rgb_image, (bbox_coords[0,0],bbox_coords[0,1]), 
                                         (bbox_coords[1,0],bbox_coords[1,1]), (255,0,0), 2) 
             
@@ -465,12 +486,15 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
             pose = relative_location("Camera",color_to_object_mapping[IndexOB])
             bottom_of_tag_y = bbox_coords[1,1]+15 if bbox_coords[1,1]+20 < rgb_image.shape[0] else rgb_image.shape[0]
             
+            # transparent box
             sub_img = rgb_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120]
             white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
             res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
             rgb_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120] = res
             
-            cv2.putText(rgb_image, str([round(pose[0],3),round(pose[1],3),round(pose[2],3)]), 
+            # print relative xyz to camera
+            text = str([round(pose[0],3),round(pose[1],3),round(pose[2],3)])
+            cv2.putText(rgb_image, text, 
                         (int(bbox_coords[0,0]),int(bbox_coords[1,1]+ 10)), 
                         cv2.FONT_HERSHEY_SIMPLEX , 0.3, (0,0,255), 1, cv2.LINE_AA) 
 
@@ -544,18 +568,43 @@ if TESTING: placeObjectsOnPlanes(object_plane_dictionaries)
 
 if TESTING: 
     
+    i = 0
+    
+    bpy.data.scenes["Scene"].cycles.samples = 5
+    
     # set pass index for all objects to 0
-    pass
+    for obj in bpy.data.objects:
+        bpy.data.objects[obj.name].pass_index = 0
+    
+    color_to_object_mapping = color_all_objects()
+
+    # render image
+    image_name = f"{str(i).zfill(6)}"
+    bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{image_name}.png"
+    bpy.ops.render.render(write_still=True)
+    
+    
+    # annotate image
+    rgb_img = cv2.imread(bpy.context.scene.render.filepath) 
+    
+    # load segmentaiton image
+    only_one_segmentation_image_found, segmentation_image = load_segmentation_image()
+    if only_one_segmentation_image_found: 
+
+        # annotate objects
+        annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name)
+     
+    
     
  
 # RENDER SETTINGS
 RENDER = True
-bpy.data.scenes["Scene"].cycles.samples = 100
+bpy.data.scenes["Scene"].cycles.samples = 5
 
 if RENDER:
     num_enviornmetns = 1
     start_idx = 0
-    renders_per_environment = 5
+    renders_per_environment = 50
     start_time = time.time()
 
     total_render_count = num_enviornmetns * renders_per_environment
