@@ -485,7 +485,11 @@ def placeObjectsOnPlanes(object_plane_dictionaries):
             placeObjectOnPlane(object_plane,obj_name, object_plane_dict,placed_object_footprints,max_attemps_per_placement)
 
 
-def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_mapping,image_name,annotations_list, image_id):
+def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_mapping,annotations_list,refs_list,image_id, image_name, tracking_variables, GENERATE_ANNOTATED_IMAGES):
+    
+    ann_id = tracking_variables["ann_id"]
+    ref_id = tracking_variables["ref_id"]
+    sent_id = tracking_variables["sent_id"]
     
     annotated_image = copy.deepcopy(rgb_image)
     
@@ -533,43 +537,62 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
             # relative pose of object
             pose = relative_location("Camera",color_to_object_mapping[IndexOB])
             
+            
+            # provide information for instances.json
             anno_dict = {}
             anno_dict["segmentation"] = [segmentation_coords.reshape(-1).tolist()]
             anno_dict["area"] = area
             anno_dict["iscrowd"] = 0
             anno_dict["image_id"] = image_id
             anno_dict["bbox"] = bbox_coords.reshape(-1).tolist()
-            anno_dict["category_id"] = color_to_object_mapping[IndexOB].split("_")[1]
-            anno_dict["id"] = "Not Implemented"
-            
+            anno_dict["category_id"] = lookup_category_id(color_to_object_mapping[IndexOB].split("_")[1])
+            anno_dict["id"] = ann_id
             anno_dict["pose"] = pose.tolist()
-            
             annotations_list.append(anno_dict)
+            
+            # provide information for refs.json
+            refs_dict = {}
+            refs_dict["sent_ids"] = []
+            refs_dict["file_name"] = image_name
+            refs_dict["ann_id"] = ann_id
+            refs_dict["ref_id"] = ref_id
+            refs_dict["image_id"] = image_id
+            refs_dict["split"] = "train"            # all annotations are assumed training 
+            refs_dict["sentences"] = []
+            refs_dict["category_id"] = anno_dict["category_id"]
+            refs_list.append(refs_dict)
                 
-            ### VISUALS FOR ANNO IMAGES
-            # draw green contour around object
-            cv2.drawContours(annotated_image, contours, -1, (0,255,0), 2)
-            
-            # draw blue rectangle around object
-            
-            cv2.rectangle(annotated_image, (bbox_coords[0,0],bbox_coords[0,1]), 
-                                        (bbox_coords[1,0],bbox_coords[1,1]), (255,0,0), 2) 
-            
-            # transparent box
-            bottom_of_tag_y = bbox_coords[1,1]+15 if bbox_coords[1,1]+20 < annotated_image.shape[0] else annotated_image.shape[0]
-            sub_img = annotated_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120]
-            white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
-            res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
-            annotated_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120] = res
-            
-            # print relative xyz to camera
-            text = str([round(pose[0],3),round(pose[1],3),round(pose[2],3)])
-            cv2.putText(annotated_image, text, 
-                        (int(bbox_coords[0,0]),int(bbox_coords[1,1]+ 10)), 
-                        cv2.FONT_HERSHEY_SIMPLEX , 0.3, (0,0,255), 1, cv2.LINE_AA) 
+            # update tracking variables
+            ann_id += 1
+            ref_id += 1
+           
+            if GENERATE_ANNOTATED_IMAGES:
+                # draw green contour around object
+                cv2.drawContours(annotated_image, contours, -1, (0,255,0), 2)
+                
+                # draw blue rectangle around object
+                
+                cv2.rectangle(annotated_image, (bbox_coords[0,0],bbox_coords[0,1]), 
+                                            (bbox_coords[1,0],bbox_coords[1,1]), (255,0,0), 2) 
+                
+                # transparent box
+                bottom_of_tag_y = bbox_coords[1,1]+15 if bbox_coords[1,1]+20 < annotated_image.shape[0] else annotated_image.shape[0]
+                sub_img = annotated_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120]
+                white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
+                res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
+                annotated_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120] = res
+                
+                # print relative xyz to camera
+                text = str([round(pose[0],3),round(pose[1],3),round(pose[2],3)])
+                cv2.putText(annotated_image, text, 
+                            (int(bbox_coords[0,0]),int(bbox_coords[1,1]+ 10)), 
+                            cv2.FONT_HERSHEY_SIMPLEX , 0.3, (0,0,255), 1, cv2.LINE_AA) 
 
+    tracking_variables["ann_id"] = ann_id
+    tracking_variables["ref_id"] = ref_id
+    tracking_variables["sent_id"] = sent_id
     
-    return annotations_list, annotated_image
+    return annotations_list, refs_list, annotated_image, tracking_variables
 
 def load_segmentation_image():
     """Load Segmentation Image Generated by Blender; name will
@@ -599,8 +622,25 @@ def load_segmentation_image():
         
         return True, segmentation_image
 
+def lookup_category_id(category_name):
+    f = open('categories.json')
+    data = json.load(f)
+    print(category_name)
+    for a in data:
+        if a["name"] == category_name:
+            print(a["id"])
+            return a["id"]
+    
+    warnings.warn(f"No category id was found for category name {category_name}")
+    return ""
 
-print()
+def generate_references():
+    """
+    input: take list with the following categoreis; annotation id | category id | centroid of image bbox | euclidian distance to camera
+    ouptut: 0-N sentences if the annodation belows to an object that is on the extreme of the image (left, right, up, down) or extreme of the scene (front, back)
+    """
+    pass
+
 TESTING = False
 
 camera_volumes = []
@@ -664,14 +704,17 @@ if TESTING:
     #     # annotate objects
     #     annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name)
      
-    
+
+
+
 ### Generate Dataset #########################    
 GENERATE_DATASET = True
+GENERATE_ANNOTATED_IMAGES = True
 
 if GENERATE_DATASET:
     
     # create directory for images and json files
-    current_time_stamp = datetime.now()
+    current_time_stamp = str(datetime.now())
     dataset_path = os.getcwd()+f"/RefCOC0_3DS_{current_time_stamp}"
     os.mkdir(dataset_path)
     os.mkdir(dataset_path+"/images")
@@ -686,15 +729,26 @@ if GENERATE_DATASET:
         "contributor": "University of Michigan",
         "date_created": f"{current_time_stamp}"
     }
-    instances_dict["images"] = {}
+    instances_dict["images"] = []
     instances_dict["annotations"] = []
     instances_dict["categories"] = {}
+        
+    # initialize refs.json list
+    refs_list = []
+    
+    
+    # dictionary of tracking variables
+    tracking_variables = {}
+    tracking_variables["ref_id"] = 0    # annotation id
+    tracking_variables["ann_id"] = 0    # reference id
+    tracking_variables["sent_id"] = 0   # sentence id
+    
     
     # render settings
-    bpy.data.scenes["Scene"].cycles.samples = 100
+    bpy.data.scenes["Scene"].cycles.samples = 1
     num_enviornmetns = 1
     start_idx = 0
-    renders_per_environment = 50
+    renders_per_environment = 1
     start_time = time.time()
 
     total_render_count = num_enviornmetns * renders_per_environment
@@ -721,7 +775,7 @@ if GENERATE_DATASET:
         color_to_object_mapping = color_all_objects()
 
         # render image
-        image_name = f"{str(image_id).zfill(6)}"
+        image_name = str(image_id).zfill(6)
         bpy.context.scene.render.filepath =  dataset_path + f"/images/{image_name}.png"
         bpy.ops.render.render(write_still=True)
         
@@ -733,15 +787,28 @@ if GENERATE_DATASET:
                 
         
         # add info to instances_dict images
-        instances_dict["images"]["file_name"] = f"{image_name}.png"
-        instances_dict["images"]["height"] = rgb_img.shape[0]
-        instances_dict["images"]["width"] = rgb_img.shape[1]
-        instances_dict["images"]["id"] = image_id
+        images_dict = {}
+        images_dict["file_name"] = f"{image_name}.png"
+        images_dict["height"] = rgb_img.shape[0]
+        images_dict["width"] = rgb_img.shape[1]
+        images_dict["date_captured"] = current_time_stamp
+        images_dict["id"] = image_id
+        
+        instances_dict["images"].append(images_dict)
         
         # add info to instances_dict annotations
         annotations_list = []
-        annotations_list, annotated_image = annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name, annotations_list, image_id)
+        annotations_list, refs_list, annotated_image, tracking_variables = annotate_objects_in_image(segmentation_image, 
+                                                                                     rgb_img, 
+                                                                                     color_to_object_mapping,
+                                                                                     annotations_list,
+                                                                                     refs_list,
+                                                                                     image_id, 
+                                                                                     image_name,
+                                                                                     tracking_variables,
+                                                                                     GENERATE_ANNOTATED_IMAGES)
         instances_dict["annotations"] += annotations_list
+        
         cv2.imwrite(dataset_path + f"/annotated/{image_name}.png", annotated_image)
         
         
@@ -756,7 +823,10 @@ if GENERATE_DATASET:
     print("DATASET GENERATION COMPLETE!")
 
 
-    with open(dataset_path+f"/instances_{current_time_stamp}.json", 'w') as f:
-        json.dump(instances_dict, f)  
+    with open(dataset_path+f"/instances.json", 'w') as f:
+        json.dump(instances_dict, f)
+        
+    with open(dataset_path+f"/refs.json", 'w') as f:
+        json.dump(refs_list, f)
     
         
