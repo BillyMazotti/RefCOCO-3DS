@@ -19,6 +19,7 @@ import math
 from math import pi
 from mathutils import Euler, Color, Vector
 from pathlib import Path
+from datetime import datetime
 
 
 # Make sure changes to local functions are being accounted for
@@ -26,10 +27,22 @@ import rotated_rect
 from importlib import reload
 reload(rotated_rect)
 from rotated_rect import RRect_center
+import copy
 
 
 
+def selectRandomCameraTarget():
+    
+    # collect list of all targets
+    target_list = []
+    for obj in bpy.data.objects:
+        if obj.name.split("_")[0] == "CameraTarget":
+            target_list.append(obj.name)
+    
+    selected_target = random.choice(target_list)
 
+    return selected_target
+    
         
 def positionCamera(x_pos, y_pos, z_pos, roll_deg):
     """
@@ -42,9 +55,12 @@ def positionCamera(x_pos, y_pos, z_pos, roll_deg):
     # position camera to specified x,y,z location
     bpy.data.objects["Camera"].location = [x_pos, y_pos, z_pos]
     
+    # select camera target
+    camera_target_name = selectRandomCameraTarget()
+    
     # set specific axis to point up
     bpy.ops.object.constraint_add(type='TRACK_TO')
-    bpy.data.objects["Camera"].constraints["Track To"].target = bpy.data.objects["CameraTarget"]
+    bpy.data.objects["Camera"].constraints["Track To"].target = bpy.data.objects[camera_target_name]
     bpy.data.objects["Camera"].constraints["Track To"].up_axis = 'UP_Y'
     bpy.ops.constraint.apply(constraint="Track To", owner='OBJECT')
 
@@ -95,14 +111,14 @@ def placeCameraInVolume(cubeMeshName,roll):
 
 def generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,objectName):
     
-    # genrate random x,y,z point within the volume for camera placement
+    # genrate random x,y,z point on plane for object placement
     randX = random.randrange(start = object_plane_limits_mm[0,0],
                             stop = object_plane_limits_mm[1,0],
                             step = 1) / 1000
     randY = random.randrange(start = object_plane_limits_mm[0,1],
                             stop = object_plane_limits_mm[1,1],
                             step = 1) / 1000    
-    z_pos = centroidXYZ[2]                    
+    z_pos = centroidXYZ[2]        
             
     # generate random orientation wihting rotaiton limits
     if (objects_dict[objectName]["rot_limits"][0][1] - \
@@ -180,11 +196,20 @@ def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footpr
     # look through all subparts to find 
     objectDimensionsXYZ = np.array(bpy.data.objects[objectName].dimensions)
    
-    max_object_length = max(objectDimensionsXYZ[0],objectDimensionsXYZ[1])
+    max_object_diameter = max(objectDimensionsXYZ[0],objectDimensionsXYZ[1])
     
+    # object_plane_limits = [[xmin,ymin],[xmax,ymax]]
     object_plane_limits = centroidXYZ[0:2] * np.ones((2,2))
-    object_plane_limits[0,:] -= (planeDimensionsXYZ[0:2] - max_object_length)/2
-    object_plane_limits[1,:] += (planeDimensionsXYZ[0:2] - max_object_length)/2
+
+
+    if (planeDimensionsXYZ[0:2] - max_object_diameter < 0.0).any():
+       warnings.warn(f"Object Plane {planeName} is too small for object {objectName}. Increase size of object plane {planeName} or remove {objectName} from the plane's json file")
+       return placed_object_footprints
+
+        
+    object_plane_limits[0,:] -= (planeDimensionsXYZ[0:2] - max_object_diameter)/2
+    object_plane_limits[1,:] += (planeDimensionsXYZ[0:2] - max_object_diameter)/2
+    
     
     object_plane_limits_mm = (object_plane_limits * 1000).astype(int)
     
@@ -368,7 +393,7 @@ def delete_all_duplicate_objects():
             bpy.ops.object.delete()
                     
                     
-def dictionary_for_object_plane(objects_json_file_path):
+def dictionary_for_object_plane(objects_json_file_path,objects_in_use):
     """ Generate Dictinary for Specified Object Plane
 
     Args:
@@ -387,14 +412,34 @@ def dictionary_for_object_plane(objects_json_file_path):
     
     # generate duplicate objects specified by json file
     for obj in objects_dict_original:
-        if objects_dict_original[obj]["max_number"] > 0:
+        if objects_dict_original[obj]["max_number"] <= 0:
+            pass
+        
+        else:   # objects_dict_original[obj]["max_number"] >= 1
             
-            # add the original to the object plane's dictionary
-            objects_dict_for_object_plane[obj] = {}
-            objects_dict_for_object_plane[obj]["rot_limits"] = objects_dict_original[obj]["rot_limits"]
+            # assme this dictionary will not use the original object
+            number_of_objects_to_duplicate = objects_dict_original[obj]["max_number"]   
+            
+            # check to see if item is already in use
+            OBJECT_IN_USE = False
+            if len(objects_in_use) > 0:
+                for scene_obj_name in objects_in_use:
+                    if scene_obj_name.split(".")[0] == obj: 
+                        OBJECT_IN_USE = True
+                        break
+            
+            if not OBJECT_IN_USE:  # add origional instance of object to dictionary
+
+                # add the original to the object plane's dictionary
+                objects_dict_for_object_plane[obj] = {}
+                objects_dict_for_object_plane[obj]["rot_limits"] = objects_dict_original[obj]["rot_limits"]
+                
+                objects_in_use.append(obj)
+                
+                number_of_objects_to_duplicate -= 1
+            
             
             # add duplicates to the object plane's dictionary
-            number_of_objects_to_duplicate = objects_dict_original[obj]["max_number"] - 1
             for i in range(number_of_objects_to_duplicate):
                 new_object_name = duplicate_object(obj)
                 
@@ -402,10 +447,9 @@ def dictionary_for_object_plane(objects_json_file_path):
                 objects_dict_for_object_plane[new_object_name] = {}
                 objects_dict_for_object_plane[new_object_name]["rot_limits"] = objects_dict_original[obj]["rot_limits"]
                 
-        else:
-            pass
+                objects_in_use.append(new_object_name)
         
-    return objects_dict_for_object_plane
+    return objects_dict_for_object_plane, objects_in_use
 
 def placeCameraInVolumes(camera_volumes):
     """ Place the camera bpy.data.objects["Camera"] in one of multiple volumes
@@ -435,11 +479,15 @@ def placeObjectsOnPlanes(object_plane_dictionaries):
     max_attemps_per_placement = 100
     for object_plane in object_plane_dictionaries:
         object_plane_dict = object_plane_dictionaries[object_plane]
-        for obj_name in object_plane_dict:
+        object_plane_dict_keys = list(object_plane_dict.keys())
+        random.shuffle(object_plane_dict_keys)
+        for obj_name in object_plane_dict_keys:
             placeObjectOnPlane(object_plane,obj_name, object_plane_dict,placed_object_footprints,max_attemps_per_placement)
 
 
-def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_mapping,image_name):
+def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_mapping,image_name,annotations_list, image_id):
+    
+    annotated_image = copy.deepcopy(rgb_image)
     
     max_number_of_annotations = segmentation_image.max()
     for IndexOB in range(max_number_of_annotations):
@@ -468,38 +516,60 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
                     contours_appended = np.vstack((contours_appended,contours[ctr]))
                                 
                 convex_contour = cv2.convexHull(contours_appended)
+                        
             
+            # area and segmentation coordinates
             area = cv2.contourArea(contours[0])
-            
-            # draw green contour around object
             segmentation_coords = contours[0].reshape(-1,2)
-            cv2.drawContours(rgb_image, contours, -1, (0,255,0), 2)
-            
-            # draw blue rectangle around object
+            for ctr_idx in range(len(contours)-1):
+                area += cv2.contourArea(contours[ctr_idx])
+                segmentation_coords = np.vstack((segmentation_coords,contours[ctr_idx].reshape(-1,2)))   
+                
+            # bounding box coordinates
             bbox_seg_coords = convex_contour.reshape(-1,2)
             bbox_coords = np.array([[bbox_seg_coords[:,0].min(),bbox_seg_coords[:,1].min()],
                                     [bbox_seg_coords[:,0].max(),bbox_seg_coords[:,1].max()]])
-            cv2.rectangle(rgb_image, (bbox_coords[0,0],bbox_coords[0,1]), 
+            
+            # relative pose of object
+            pose = relative_location("Camera",color_to_object_mapping[IndexOB])
+            
+            anno_dict = {}
+            anno_dict["segmentation"] = [segmentation_coords.reshape(-1).tolist()]
+            anno_dict["area"] = area
+            anno_dict["iscrowd"] = 0
+            anno_dict["image_id"] = image_id
+            anno_dict["bbox"] = bbox_coords.reshape(-1).tolist()
+            anno_dict["category_id"] = color_to_object_mapping[IndexOB].split("_")[1]
+            anno_dict["id"] = "Not Implemented"
+            
+            anno_dict["pose"] = pose.tolist()
+            
+            annotations_list.append(anno_dict)
+                
+            ### VISUALS FOR ANNO IMAGES
+            # draw green contour around object
+            cv2.drawContours(annotated_image, contours, -1, (0,255,0), 2)
+            
+            # draw blue rectangle around object
+            
+            cv2.rectangle(annotated_image, (bbox_coords[0,0],bbox_coords[0,1]), 
                                         (bbox_coords[1,0],bbox_coords[1,1]), (255,0,0), 2) 
             
-            
-            pose = relative_location("Camera",color_to_object_mapping[IndexOB])
-            bottom_of_tag_y = bbox_coords[1,1]+15 if bbox_coords[1,1]+20 < rgb_image.shape[0] else rgb_image.shape[0]
-            
             # transparent box
-            sub_img = rgb_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120]
+            bottom_of_tag_y = bbox_coords[1,1]+15 if bbox_coords[1,1]+20 < annotated_image.shape[0] else annotated_image.shape[0]
+            sub_img = annotated_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120]
             white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
             res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
-            rgb_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120] = res
+            annotated_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120] = res
             
             # print relative xyz to camera
             text = str([round(pose[0],3),round(pose[1],3),round(pose[2],3)])
-            cv2.putText(rgb_image, text, 
+            cv2.putText(annotated_image, text, 
                         (int(bbox_coords[0,0]),int(bbox_coords[1,1]+ 10)), 
                         cv2.FONT_HERSHEY_SIMPLEX , 0.3, (0,0,255), 1, cv2.LINE_AA) 
 
-        
-    cv2.imwrite(f"data/anno/{image_name}.png", rgb_image) 
+    
+    return annotations_list, annotated_image
 
 def load_segmentation_image():
     """Load Segmentation Image Generated by Blender; name will
@@ -530,6 +600,7 @@ def load_segmentation_image():
         return True, segmentation_image
 
 
+print()
 TESTING = False
 
 camera_volumes = []
@@ -537,7 +608,10 @@ camera_volumes = []
 
 
 camera_volumes = ["CameraVolume1",
-                "CameraVolume2"]
+                "CameraVolume2",
+                "CameraVolume3",
+                "CameraVolume4",
+                "CameraVolume5",]
 
 
 ###########################################################################
@@ -551,16 +625,12 @@ move_away_all_objects([5,5,0])
 object_plane_dictionaries = {}
 ### Define Object Plane dictionaries here #################################
 
-
-object_plane_dictionaries["ObjectPlane1"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op1.json")
-object_plane_dictionaries["ObjectPlane2"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op2.json")
-# TODO: Need to fix the problem of not adding new objects for new planes; need to keep track of whether or not object has been duplicated;
-# if object has alredy be en duplicated then continue to duplicate objec for new objects on new plane
-# object_plane_dictionaries["ObjectPlane3"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json")
-# object_plane_dictionaries["ObjectPlane4"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json")
-# object_plane_dictionaries["ObjectPlane5"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json")
-# object_plane_dictionaries["ObjectPlane6"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json")
-# object_plane_dictionaries["ObjectPlane7"] = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json")
+objects_in_use = []
+object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op1.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op2.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
 
 
 ###########################################################################
@@ -578,41 +648,61 @@ if TESTING:
     
     color_to_object_mapping = color_all_objects()
 
-    # render image
-    image_name = f"{str(i).zfill(6)}"
-    bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{image_name}.png"
-    bpy.ops.render.render(write_still=True)
+    # # render image
+    # image_name = f"{str(i).zfill(6)}"
+    # bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{image_name}.png"
+    # bpy.ops.render.render(write_still=True)
     
     
-    # annotate image
-    rgb_img = cv2.imread(bpy.context.scene.render.filepath) 
+    # # annotate image
+    # rgb_img = cv2.imread(bpy.context.scene.render.filepath) 
     
-    # load segmentaiton image
-    only_one_segmentation_image_found, segmentation_image = load_segmentation_image()
-    if only_one_segmentation_image_found: 
+    # # load segmentaiton image
+    # only_one_segmentation_image_found, segmentation_image = load_segmentation_image()
+    # if only_one_segmentation_image_found: 
 
-        # annotate objects
-        annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name)
+    #     # annotate objects
+    #     annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name)
      
     
-    
- 
-# RENDER SETTINGS
-RENDER = True
-bpy.data.scenes["Scene"].cycles.samples = 5
+### Generate Dataset #########################    
+GENERATE_DATASET = True
 
-if RENDER:
+if GENERATE_DATASET:
+    
+    # create directory for images and json files
+    current_time_stamp = datetime.now()
+    dataset_path = os.getcwd()+f"/RefCOC0_3DS_{current_time_stamp}"
+    os.mkdir(dataset_path)
+    os.mkdir(dataset_path+"/images")
+    os.mkdir(dataset_path+"/annotated")
+    
+    # initialize instances.json dictionary
+    instances_dict = {}
+    instances_dict["info"] = {
+        "description": "This is dev 0.1 version of the 2024 RefCOCO 3D Synthetic Spatial dataset.",
+        "version": "0.1",
+        "year": 2024,
+        "contributor": "University of Michigan",
+        "date_created": f"{current_time_stamp}"
+    }
+    instances_dict["images"] = {}
+    instances_dict["annotations"] = []
+    instances_dict["categories"] = {}
+    
+    # render settings
+    bpy.data.scenes["Scene"].cycles.samples = 100
     num_enviornmetns = 1
     start_idx = 0
     renders_per_environment = 50
     start_time = time.time()
 
     total_render_count = num_enviornmetns * renders_per_environment
-
+    
+    
     renter_rates = np.zeros(total_render_count)
-
     print("\n\n\nSTARTING DATASET GENERATION...")
-    for i in range(start_idx, start_idx + renders_per_environment):
+    for image_id in range(start_idx, start_idx + renders_per_environment):
         
         # randomly place camera in a volume defined by a cube mesh
         placeCameraInVolumes(camera_volumes)
@@ -631,34 +721,42 @@ if RENDER:
         color_to_object_mapping = color_all_objects()
 
         # render image
-        image_name = f"{str(i).zfill(6)}"
-        bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{image_name}.png"
+        image_name = f"{str(image_id).zfill(6)}"
+        bpy.context.scene.render.filepath =  dataset_path + f"/images/{image_name}.png"
         bpy.ops.render.render(write_still=True)
         
         
-        # annotate image
+        # retrieve rgb and segmentation images
         rgb_img = cv2.imread(bpy.context.scene.render.filepath) 
-        
-        # load segmentaiton image
         only_one_segmentation_image_found, segmentation_image = load_segmentation_image()
         if not only_one_segmentation_image_found: break
+                
         
-
-        # annotate objects
-        annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name)
+        # add info to instances_dict images
+        instances_dict["images"]["file_name"] = f"{image_name}.png"
+        instances_dict["images"]["height"] = rgb_img.shape[0]
+        instances_dict["images"]["width"] = rgb_img.shape[1]
+        instances_dict["images"]["id"] = image_id
+        
+        # add info to instances_dict annotations
+        annotations_list = []
+        annotations_list, annotated_image = annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name, annotations_list, image_id)
+        instances_dict["annotations"] += annotations_list
+        cv2.imwrite(dataset_path + f"/annotated/{image_name}.png", annotated_image)
+        
         
         # render rate statistics
-        renter_rates[i] =  (time.time() - start_time) / (i + 1)
-        seconds_remaining = renter_rates[i] * (total_render_count - i - 1)
+        renter_rates[image_id] =  (time.time() - start_time) / (image_id + 1)
+        seconds_remaining = renter_rates[image_id] * (total_render_count - image_id - 1)
         print(f'\nTotal Passed: {time.strftime("%H:%M:%S",time.gmtime(time.time()-start_time))} | Remaining Time: {time.strftime("%H:%M:%S",time.gmtime(seconds_remaining))}s')
-        print(f'Current | Avg | Max | Min Renter Rates (s/img): {round(renter_rates[i],2)} | {round(renter_rates[:i+1].mean(),2)} | {round(renter_rates[:i+1].max(),2)} | {round(renter_rates[:i+1].min(),2)}')
+        print(f'Current | Avg | Max | Min Renter Rates (s/img): {round(renter_rates[image_id],2)} | {round(renter_rates[:image_id+1].mean(),2)} | {round(renter_rates[:image_id+1].max(),2)} | {round(renter_rates[:image_id+1].min(),2)}')
         
         
         
     print("DATASET GENERATION COMPLETE!")
 
-# print("\nhello there\n")
 
-    
+    with open(dataset_path+f"/instances_{current_time_stamp}.json", 'w') as f:
+        json.dump(instances_dict, f)  
     
         
