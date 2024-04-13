@@ -641,7 +641,7 @@ def generate_references():
     """
     pass
 
-TESTING = False
+TESTING = True
 
 camera_volumes = []
 ### Define Camera Volumes #################################################
@@ -708,7 +708,7 @@ if TESTING:
 
 
 ### Generate Dataset #########################    
-GENERATE_DATASET = True
+GENERATE_DATASET = False
 GENERATE_ANNOTATED_IMAGES = True
 
 if GENERATE_DATASET:
