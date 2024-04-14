@@ -1,12 +1,5 @@
-import sys, os, time, warnings
-
-paths = ['/Users/billymazotti/miniforge3/lib/python3.9/site-packages/',
-         os.getcwd()]
-
-for path in paths:
-    sys.path.append(path)
-    
 # blender already has
+import sys, os, time, warnings
 import bpy
 import numpy as np
 import json
@@ -17,6 +10,8 @@ from mathutils import Euler, Color, Vector
 from pathlib import Path
 from datetime import datetime
 import copy
+
+sys.path.append(os.getcwd())
 from importlib import reload
 
 

@@ -17,13 +17,11 @@ Post tutorial, to quickly run new python code from blender with hotkey:
 <img width="491" alt="image" src="https://github.com/BillyMazotti/RefCOCO-Synthetic-3D/assets/96280520/f1b812cc-f343-44e3-a23b-842ad9d4db7d">
 
 ## Installing packages to Blender python
-import sys, os, time, warnings
 
-paths = ['/Users/billymazotti/miniforge3/lib/python3.9/site-packages/',
-         os.getcwd()]
+Blender's python will already have the following packages:
+* sys, os, time, warnings, bpy
 
-for path in paths:
-    sys.path.append(path)
+sys.path.append(os.getcwd())
 
 import bpy
 import numpy as np
@@ -48,6 +46,9 @@ reload(rotated_rect)
 from rotated_rect import RRect_center
 import copy
 
+
+## other prep
+need to change direcotry in compositing
 
 ## RefCOCO-S3D dataset definition 
 ### RefCOCO's annotations format
