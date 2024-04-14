@@ -10,21 +10,15 @@ from mathutils import Euler, Color, Vector
 from pathlib import Path
 from datetime import datetime
 import copy
-
-sys.path.append(os.getcwd())
 from importlib import reload
-
 
 # blender does not have; install via python -m pip install ...
 import cv2
 from shapely.geometry import Polygon
 import matplotlib.pyplot as plt
 
-
-
-
-
 # Custom packages
+sys.path.append(os.getcwd())
 import rotated_rect
 reload(rotated_rect)
 from rotated_rect import RRect_center
