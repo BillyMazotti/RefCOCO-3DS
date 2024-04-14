@@ -1,8 +1,10 @@
 # RefCOCO-Synthetic-3D
 
 
+## Installation and Preparation
+This section covers the setup steps needed for generating the dataset.
 
-## Setting up Blender + VS Code programmiong Environment
+### Setting up Blender + VS Code programmiong Environment
 RefCOCO Synthetic 3D Dataset Generation
 
 For VS Code + Blender integration follow CG Python's tutorial ([Windows](https://www.youtube.com/watch?v=YUytEtaVrrc), [macOS](https://www.youtube.com/watch?v=_0srGXAzBZE), [Linux](https://www.youtube.com/watch?v=zP0s1i9EXeM)), although would recommend using Anaconda for python virtual environment.
@@ -11,46 +13,34 @@ Post tutorial, to quickly run new python code from blender with hotkey:
 1) Open python script file in VS Code
 2) Open VS Code's Command Palette (CTL/CMD + SHIFT + P), type in and select "Blender: Start"
 4) In Blender, open up a new project or an in-progress project if you have one
-5) To define a custom hotkey for running your script in VS Code, in VS Code's Command Palette, start typig in "Blend: Run Script" and click on the settings gear icon to the right of "Blend: Run Script" (see image below)
-6) Change the "Keybinding" to whatever hotkey you want to use for running the script
+5) Optional: To define a custom hotkey for running your script in VS Code, in VS Code's Command Palette, start typig in "Blend: Run Script" and click on the settings gear icon to the right of "Blend: Run Script" (see image below); Change the "Keybinding" to whatever hotkey you want to use for running the script
 
 <img width="491" alt="image" src="https://github.com/BillyMazotti/RefCOCO-Synthetic-3D/assets/96280520/f1b812cc-f343-44e3-a23b-842ad9d4db7d">
 
-## Installing packages to Blender python
-
-Blender's python will already have the following packages:
-* sys, os, time, warnings, bpy
-
-sys.path.append(os.getcwd())
-
-import bpy
-import numpy as np
-import cv2
-from shapely.geometry import Polygon
-import matplotlib.pyplot as plt
-import json
-
-
-import random
-import math
-from math import pi
-from mathutils import Euler, Color, Vector
-from pathlib import Path
-from datetime import datetime
+### INstall additional packages to Blender's python
+As of now, blender does not have the modules/libraires for opencv, shapely, and matplotlib, packages that are needed by generat_dataset.py. In order to install these modules, we need to first find where the blender python executable is.
+1) Open the Blender application
+2) Click on the scripting tab at the top
+3) In the pseudo terminal, type the following to get the path of the Blender executbale.
+```
+import sys
+print(sys.executable)
+```
+4) change your directory to the bin that contains Blender's python exectuable and install the necessary packages using `./[insert python executable name here] -m pip install [insert package name here]`. For python exectuable python3.10 and the aforementioned missing modules, this looks like:
+./python3.10 -m pip install opencv-python
+./python3.10 -m pip install shapely
+./python3.10 -m pip install matplotlib
 
 
-# Make sure changes to local functions are being accounted for
-import rotated_rect
-from importlib import reload
-reload(rotated_rect)
-from rotated_rect import RRect_center
-import copy
+### Change the Compositing Directory
+Blender generats a segmentaiton mask of the objects and saves it do the /data directory in this repo. You need to tell Blender where this repo is by:
+1) Open .blend file
+2) Click on the compositing tabl
+3) Click on the Output File node and change the directory of the output file to the directory of /RefCOCO-Syntehtic-3D/data
 
 
-## other prep
-need to change direcotry in compositing
 
-## RefCOCO-S3D dataset definition 
+## Extra: RefCOCO-S3D dataset definition 
 ### RefCOCO's annotations format
 ```
 instances.json = {
