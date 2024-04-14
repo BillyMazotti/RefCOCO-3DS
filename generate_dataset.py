@@ -852,12 +852,12 @@ object_plane_dictionaries = {}
 ### Define Object Plane dictionaries here #################################
 
 objects_in_use = []
-object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op1.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op2.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+# object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
 
 
 ###########################################################################

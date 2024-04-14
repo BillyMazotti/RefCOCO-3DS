@@ -27,10 +27,11 @@ import sys
 print(sys.executable)
 ```
 4) change your directory to the bin that contains Blender's python exectuable and install the necessary packages using `./[insert python executable name here] -m pip install [insert package name here]`. For python exectuable python3.10 and the aforementioned missing modules, this looks like:
+```
 ./python3.10 -m pip install opencv-python
 ./python3.10 -m pip install shapely
 ./python3.10 -m pip install matplotlib
-
+```
 
 ### Change the Compositing Directory
 Blender generats a segmentaiton mask of the objects and saves it do the /data directory in this repo. You need to tell Blender where this repo is by:
