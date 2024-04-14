@@ -5,29 +5,34 @@ paths = ['/Users/billymazotti/miniforge3/lib/python3.9/site-packages/',
 
 for path in paths:
     sys.path.append(path)
-
+    
+# blender already has
 import bpy
 import numpy as np
-import cv2
-from shapely.geometry import Polygon
-import matplotlib.pyplot as plt
 import json
-
-
 import random
 import math
 from math import pi
 from mathutils import Euler, Color, Vector
 from pathlib import Path
 from datetime import datetime
-
-
-# Make sure changes to local functions are being accounted for
-import rotated_rect
+import copy
 from importlib import reload
+
+
+# blender does not have; install via python -m pip install ...
+import cv2
+from shapely.geometry import Polygon
+import matplotlib.pyplot as plt
+
+
+
+
+
+# Custom packages
+import rotated_rect
 reload(rotated_rect)
 from rotated_rect import RRect_center
-import copy
 
 
 
@@ -493,6 +498,8 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
     
     annotated_image = copy.deepcopy(rgb_image)
     
+    starting_anno_length = copy.deepcopy(len(annotations_list))
+    
     max_number_of_annotations = segmentation_image.max()
     for IndexOB in range(max_number_of_annotations):
         IndexOB+=1
@@ -519,75 +526,87 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
                     ctr += 1
                     contours_appended = np.vstack((contours_appended,contours[ctr]))
                                 
-                convex_contour = cv2.convexHull(contours_appended)
-                        
+                convex_contour = cv2.convexHull(contours_appended)       
             
             # area and segmentation coordinates
             area = cv2.contourArea(contours[0])
             segmentation_coords = contours[0].reshape(-1,2)
             for ctr_idx in range(len(contours)-1):
+                ctr_idx += 1
                 area += cv2.contourArea(contours[ctr_idx])
                 segmentation_coords = np.vstack((segmentation_coords,contours[ctr_idx].reshape(-1,2)))   
-                
-            # bounding box coordinates
-            bbox_seg_coords = convex_contour.reshape(-1,2)
-            bbox_coords = np.array([[bbox_seg_coords[:,0].min(),bbox_seg_coords[:,1].min()],
-                                    [bbox_seg_coords[:,0].max(),bbox_seg_coords[:,1].max()]])
             
-            # relative pose of object
-            pose = relative_location("Camera",color_to_object_mapping[IndexOB])
+            # only keep annotations with areas >= 30 pixels; coincides with ~99.2% of COCO dataset
+            if area >= 30:
             
+                # bounding box coordinates
+                bbox_seg_coords = convex_contour.reshape(-1,2)
+                bbox_coords = np.array([[bbox_seg_coords[:,0].min(),bbox_seg_coords[:,1].min()],
+                                        [bbox_seg_coords[:,0].max(),bbox_seg_coords[:,1].max()]])
+                
+                # relative pose of object
+                pose = relative_location("Camera",color_to_object_mapping[IndexOB])
+                
+                
+                # provide information for instances.json
+                anno_dict = {}
+                anno_dict["segmentation"] = [segmentation_coords.reshape(-1).tolist()]
+                anno_dict["area"] = area
+                anno_dict["iscrowd"] = 0
+                anno_dict["image_id"] = image_id
+                anno_dict["bbox"] = bbox_coords.reshape(-1).tolist()
+                
+                category_name = color_to_object_mapping[IndexOB].split("_")[1]
+                if category_name == "cell": category_name = "cell phone"
+                anno_dict["category_id"] = lookup_category_id(category_name)
+                anno_dict["id"] = ann_id
+                anno_dict["pose"] = pose.tolist()
+                annotations_list.append(anno_dict)
+                
+                # provide information for refs.json
+                refs_dict = {}
+                refs_dict["sent_ids"] = []
+                refs_dict["file_name"] = image_name
+                refs_dict["ann_id"] = ann_id
+                refs_dict["ref_id"] = ref_id
+                refs_dict["image_id"] = image_id
+                refs_dict["split"] = "train"            # all annotations are assumed training 
+                refs_dict["sentences"] = []
+                refs_dict["category_id"] = anno_dict["category_id"]
+                refs_list.append(refs_dict)
+                    
+                # update tracking variables
+                ann_id += 1
+                ref_id += 1
             
-            # provide information for instances.json
-            anno_dict = {}
-            anno_dict["segmentation"] = [segmentation_coords.reshape(-1).tolist()]
-            anno_dict["area"] = area
-            anno_dict["iscrowd"] = 0
-            anno_dict["image_id"] = image_id
-            anno_dict["bbox"] = bbox_coords.reshape(-1).tolist()
-            anno_dict["category_id"] = lookup_category_id(color_to_object_mapping[IndexOB].split("_")[1])
-            anno_dict["id"] = ann_id
-            anno_dict["pose"] = pose.tolist()
-            annotations_list.append(anno_dict)
-            
-            # provide information for refs.json
-            refs_dict = {}
-            refs_dict["sent_ids"] = []
-            refs_dict["file_name"] = image_name
-            refs_dict["ann_id"] = ann_id
-            refs_dict["ref_id"] = ref_id
-            refs_dict["image_id"] = image_id
-            refs_dict["split"] = "train"            # all annotations are assumed training 
-            refs_dict["sentences"] = []
-            refs_dict["category_id"] = anno_dict["category_id"]
-            refs_list.append(refs_dict)
-                
-            # update tracking variables
-            ann_id += 1
-            ref_id += 1
-           
-            if GENERATE_ANNOTATED_IMAGES:
-                # draw green contour around object
-                cv2.drawContours(annotated_image, contours, -1, (0,255,0), 2)
-                
-                # draw blue rectangle around object
-                
-                cv2.rectangle(annotated_image, (bbox_coords[0,0],bbox_coords[0,1]), 
-                                            (bbox_coords[1,0],bbox_coords[1,1]), (255,0,0), 2) 
-                
-                # transparent box
-                bottom_of_tag_y = bbox_coords[1,1]+15 if bbox_coords[1,1]+20 < annotated_image.shape[0] else annotated_image.shape[0]
-                sub_img = annotated_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120]
-                white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
-                res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
-                annotated_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120] = res
-                
-                # print relative xyz to camera
-                text = str([round(pose[0],3),round(pose[1],3),round(pose[2],3)])
-                cv2.putText(annotated_image, text, 
-                            (int(bbox_coords[0,0]),int(bbox_coords[1,1]+ 10)), 
-                            cv2.FONT_HERSHEY_SIMPLEX , 0.3, (0,0,255), 1, cv2.LINE_AA) 
+                if GENERATE_ANNOTATED_IMAGES:
+                    # draw green contour around object
+                    cv2.drawContours(annotated_image, contours, -1, (0,255,0), 2)
+                    
+                    # draw blue rectangle around object
+                    cv2.rectangle(annotated_image, (bbox_coords[0,0],bbox_coords[0,1]), 
+                                                (bbox_coords[1,0],bbox_coords[1,1]), (255,0,0), 2) 
+                    
+                    # transparent box
+                    bottom_of_tag_y = bbox_coords[1,1]+15 if bbox_coords[1,1]+20 < annotated_image.shape[0] else annotated_image.shape[0]
+                    sub_img = annotated_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120]
+                    white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
+                    res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
+                    annotated_image[bbox_coords[1,1]:bottom_of_tag_y, bbox_coords[0,0]:bbox_coords[0,0]+120] = res
+                    
+                    # print relative xyz to camera
+                    text = str([round(pose[0],3),round(pose[1],3),round(pose[2],3)])
+                    cv2.putText(annotated_image, text, 
+                                (int(bbox_coords[0,0]),int(bbox_coords[1,1]+ 10)), 
+                                cv2.FONT_HERSHEY_SIMPLEX , 0.3, (0,0,255), 1, cv2.LINE_AA) 
 
+    
+    
+    if len(annotations_list) - starting_anno_length  > 0:   # if we've added annotations for this image
+                
+        refs_list, sent_id = generate_sentences(annotations_list, refs_list, starting_anno_length, sent_id)
+         
+    
     tracking_variables["ann_id"] = ann_id
     tracking_variables["ref_id"] = ref_id
     tracking_variables["sent_id"] = sent_id
@@ -625,23 +644,201 @@ def load_segmentation_image():
 def lookup_category_id(category_name):
     f = open('categories.json')
     data = json.load(f)
-    print(category_name)
     for a in data:
         if a["name"] == category_name:
-            print(a["id"])
             return a["id"]
     
     warnings.warn(f"No category id was found for category name {category_name}")
     return ""
 
-def generate_references():
+def lookup_category_name(category_id):
+    f = open('categories.json')
+    data = json.load(f)
+    for a in data:
+        if a["id"] == category_id:
+            return a["name"]
+    
+    warnings.warn(f"No category name was found for category id {category_id}")
+    return ""
+
+def generate_sentences(annotations_list, refs_list, starting_anno_length, sent_id):
     """
-    input: take list with the following categoreis; annotation id | category id | centroid of image bbox | euclidian distance to camera
+    input: take list with the following categoreis; annotation id | category id | centroid of image bbox (x | y) | euclidian distance to camera
     ouptut: 0-N sentences if the annodation belows to an object that is on the extreme of the image (left, right, up, down) or extreme of the scene (front, back)
     """
-    pass
+    
+    annotations_added = annotations_list[starting_anno_length:] # indexes of annotations that were added
+    
+    annotation_array_all_categories = np.zeros((len(annotations_added),5))
+    for anno_idx, anno in enumerate(annotations_added):
+        annotation_array_all_categories[anno_idx,0] = anno["id"]
+        annotation_array_all_categories[anno_idx,1] = anno["category_id"]
+        annotation_array_all_categories[anno_idx,2:4] = np.array(anno["bbox"]).reshape(2,2).mean(0)
+        annotation_array_all_categories[anno_idx,4] = np.linalg.norm(np.array(anno["pose"]))
+        
+    # create sub arrays in dictionary for each category id
+    annotation_array_dict = {}
+    for anno in annotation_array_all_categories:
 
-TESTING = True
+        if anno[1] in annotation_array_dict.keys():
+            annotation_array_dict[anno[1]] = np.vstack((annotation_array_dict[anno[1]],anno))  
+        else:
+            annotation_array_dict[anno[1]] = anno.reshape(1,-1)
+    
+    for category_id in annotation_array_dict.keys():
+        annotation_array = annotation_array_dict[category_id]
+        
+        if annotation_array.shape[0] > 1:   # if we have more than one object of the same category
+            
+            # find most left, right, top, bottom, near, far objects         # extreme encoding
+            left_most_annotation_idx = annotation_array[:,2].argmin()       # 0
+            right_most_annotation_idx = annotation_array[:,2].argmax()      # 0
+            top_most_annotation_idx = annotation_array[:,3].argmin()        # 0
+            bottom_most_annotation_idx = annotation_array[:,3].argmax()     # 0
+            closest_annotation_idx = annotation_array[:,4].argmin()         # 0
+            furthest_annotation_idx = annotation_array[:,4].argmax()        # 0
+            
+            extremes_hot_idx = np.zeros((annotation_array.shape[0],6))
+            extremes_hot_idx[left_most_annotation_idx,0] = 1
+            extremes_hot_idx[right_most_annotation_idx,1] = 1
+            extremes_hot_idx[top_most_annotation_idx,2] = 1
+            extremes_hot_idx[bottom_most_annotation_idx,3] = 1
+            extremes_hot_idx[closest_annotation_idx,4] = 1
+            extremes_hot_idx[furthest_annotation_idx,5] = 1
+                        
+            
+            for idx, extremes in enumerate(extremes_hot_idx):
+                sent_id_list, sentence_list = [],[]
+                EXTREME_FOUND = False
+                
+                if extremes[0] == 1:
+                    sent_id_list, sentence_list, sent_id = create_spatial_sentences(annotation_array, idx, "left", sent_id, sent_id_list, sentence_list)
+                    EXTREME_FOUND = True
+                        
+                if extremes[1] == 1:
+                    sent_id_list, sentence_list, sent_id = create_spatial_sentences(annotation_array, idx, "right", sent_id, sent_id_list, sentence_list)
+                    EXTREME_FOUND = True
+                    
+                if extremes[2] == 1:
+                    sent_id_list, sentence_list, sent_id = create_spatial_sentences(annotation_array, idx, "top", sent_id, sent_id_list, sentence_list)
+                    EXTREME_FOUND = True
+                    
+                if extremes[3] == 1:
+                    sent_id_list, sentence_list, sent_id = create_spatial_sentences(annotation_array, idx, "bottom", sent_id, sent_id_list, sentence_list)
+                    EXTREME_FOUND = True
+                    
+                if extremes[4] == 1:
+                    sent_id_list, sentence_list, sent_id = create_spatial_sentences(annotation_array, idx, "near", sent_id, sent_id_list, sentence_list)
+                    EXTREME_FOUND = True
+                    
+                if extremes[5] == 1:
+                    sent_id_list, sentence_list, sent_id =  create_spatial_sentences(annotation_array, idx, "far", sent_id, sent_id_list, sentence_list)
+                    EXTREME_FOUND = True
+                    
+                if not EXTREME_FOUND:   # if the object is not any extreme
+                    sent_id_list, sentence_list, sent_id =  create_spatial_sentences(annotation_array, idx, "none", sent_id, sent_id_list, sentence_list)
+
+                refs_list[starting_anno_length + int(annotation_array[idx,0])]["sent_ids"] += sent_id_list
+                refs_list[starting_anno_length + int(annotation_array[idx,0])]["sentences"] += sentence_list
+    
+        else:
+            sent_id_list, sentence_list = [],[]
+            sent_id_list, sentence_list, sent_id =  create_spatial_sentences(annotation_array, 0, "none", sent_id, sent_id_list, sentence_list)
+            
+            refs_list[starting_anno_length + int(annotation_array[0,0])]["sent_ids"] += sent_id_list
+            refs_list[starting_anno_length + int(annotation_array[0,0])]["sentences"] += sentence_list
+        
+    return refs_list, sent_id
+
+def create_spatial_sentences(annotation_array,annotation_idx,phrase_type,sent_id, sent_id_list, sentence_list):
+
+    category_name = lookup_category_name(annotation_array[annotation_idx,1])
+    
+    if phrase_type == "none":
+        
+        default_sentence = {"tokens": [category_name], "raw": category_name, "sent_id": sent_id, "sent": category_name}
+        sentence_list.append(default_sentence)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+    
+    elif phrase_type in ["left","right","top","bottom"]:
+        
+        s1 = f"{phrase_type}most {category_name}" 
+        sentence_1 = {"tokens": s1.split(" "), "raw": s1, "sent_id": sent_id, "sent": s1}
+        sentence_list.append(sentence_1)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+    
+        
+        s2 = f"{category_name} on the {phrase_type}" 
+        sentence_2 = {"tokens": s2.split(" "), "raw": s2, "sent_id": sent_id, "sent": s2}
+        sentence_list.append(sentence_2)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+        
+        s3 = f"{category_name} near the {phrase_type}" 
+        sentence_3 = {"tokens": s3.split(" "), "raw": s3, "sent_id": sent_id, "sent": s3}
+        sentence_list.append(sentence_3)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+        
+    elif phrase_type == "near":
+        
+        s1 = f"nearest {category_name}" 
+        sentence_1 = {"tokens": s1.split(" "), "raw": s1, "sent_id": sent_id, "sent": s1}
+        sentence_list.append(sentence_1)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+        
+        s2 = f"closest {category_name}" 
+        sentence_2 = {"tokens": s2.split(" "), "raw": s2, "sent_id": sent_id, "sent": s2}
+        sentence_list.append(sentence_2)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+        
+        s3 = f"{category_name} in the foreground" 
+        sentence_3 = {"tokens": s3.split(" "), "raw": s3, "sent_id": sent_id, "sent": s3}
+        sentence_list.append(sentence_3)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+        
+    elif phrase_type == "far":
+        
+        s1 = f"furthest {category_name}" 
+        sentence_1 = {"tokens": s1.split(" "), "raw": s1, "sent_id": sent_id, "sent": s1}
+        sentence_list.append(sentence_1)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+        
+        s2 = f"farthest {category_name}" 
+        sentence_2 = {"tokens": s2.split(" "), "raw": s2, "sent_id": sent_id, "sent": s2}
+        sentence_list.append(sentence_2)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+        
+        s3 = f"{category_name} in the background" 
+        sentence_3 = {"tokens": s3.split(" "), "raw": s3, "sent_id": sent_id, "sent": s3}
+        sentence_list.append(sentence_3)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+        
+        s4 = f"most distant {category_name}" 
+        sentence_4 = {"tokens": s4.split(" "), "raw": s4, "sent_id": sent_id, "sent": s4}
+        sentence_list.append(sentence_4)
+        sent_id_list.append(sent_id)
+        sent_id += 1
+        
+    else:
+        warnings.warn(f"Unreecognized phrase type {phrase_type} for create_three_spatial_sentences()")
+    
+
+    return sent_id_list, sentence_list, sent_id
+###########################################################################
+###########################################################################
+###########################################################################
+TESTING = False
+
+
 
 camera_volumes = []
 ### Define Camera Volumes #################################################
@@ -671,6 +868,7 @@ object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object
 object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
 object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
 object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_op3.json",objects_in_use)
 
 
 ###########################################################################
@@ -682,36 +880,78 @@ if TESTING:
     
     bpy.data.scenes["Scene"].cycles.samples = 5
     
+     # initialize instances.json dictionary
+    instances_dict = {}
+    instances_dict["info"] = {
+        "description": "This is dev 0.1 version of the 2024 RefCOCO 3D Synthetic Spatial dataset.",
+        "version": "0.1",
+        "year": 2024,
+        "contributor": "University of Michigan",
+    }
+    instances_dict["images"] = []
+    instances_dict["annotations"] = []
+    instances_dict["categories"] = {}
+        
+    # initialize refs.json list
+    refs_list = []
+    
+    # dictionary of tracking variables
+    tracking_variables = {}
+    tracking_variables["ref_id"] = 0    # annotation id
+    tracking_variables["ann_id"] = 0    # reference id
+    tracking_variables["sent_id"] = 0   # sentence id
+    
+    
     # set pass index for all objects to 0
     for obj in bpy.data.objects:
         bpy.data.objects[obj.name].pass_index = 0
     
     color_to_object_mapping = color_all_objects()
 
-    # # render image
-    # image_name = f"{str(i).zfill(6)}"
-    # bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{image_name}.png"
-    # bpy.ops.render.render(write_still=True)
+    # render image
+    image_name = f"{str(i).zfill(6)}"
+    bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{image_name}.png"
+    bpy.ops.render.render(write_still=True)
     
+    # retrieve rgb and segmentation images
+    rgb_img = cv2.imread(bpy.context.scene.render.filepath) 
+    only_one_segmentation_image_found, segmentation_image = load_segmentation_image()
     
-    # # annotate image
-    # rgb_img = cv2.imread(bpy.context.scene.render.filepath) 
+    # add info to instances_dict images
+    images_dict = {}
+    images_dict["file_name"] = f"{image_name}.png"
+    images_dict["height"] = rgb_img.shape[0]
+    images_dict["width"] = rgb_img.shape[1]
+    images_dict["id"] = i
     
-    # # load segmentaiton image
-    # only_one_segmentation_image_found, segmentation_image = load_segmentation_image()
-    # if only_one_segmentation_image_found: 
-
-    #     # annotate objects
-    #     annotate_objects_in_image(segmentation_image, rgb_img, color_to_object_mapping, image_name)
-     
+    # add info to instances_dict annotations
+    annotations_list = []
+    annotations_list, refs_list, annotated_image, tracking_variables = annotate_objects_in_image(segmentation_image, 
+                                                                                    rgb_img, 
+                                                                                    color_to_object_mapping,
+                                                                                    annotations_list,
+                                                                                    refs_list,
+                                                                                    i, 
+                                                                                    image_name,
+                                                                                    tracking_variables,
+                                                                                    True)
+    cv2.imwrite(f"data/anno/{image_name}.png", annotated_image)
 
 
 
 ### Generate Dataset #########################    
-GENERATE_DATASET = False
+GENERATE_DATASET = not TESTING
 GENERATE_ANNOTATED_IMAGES = True
 
+
 if GENERATE_DATASET:
+    
+    # render settings
+    bpy.data.scenes["Scene"].cycles.samples = 5
+    num_enviornmetns = 1
+    start_idx = 0
+    renders_per_environment = 1
+    
     
     # create directory for images and json files
     current_time_stamp = str(datetime.now())
@@ -736,26 +976,17 @@ if GENERATE_DATASET:
     # initialize refs.json list
     refs_list = []
     
-    
     # dictionary of tracking variables
     tracking_variables = {}
     tracking_variables["ref_id"] = 0    # annotation id
     tracking_variables["ann_id"] = 0    # reference id
     tracking_variables["sent_id"] = 0   # sentence id
     
-    
-    # render settings
-    bpy.data.scenes["Scene"].cycles.samples = 1
-    num_enviornmetns = 1
-    start_idx = 0
-    renders_per_environment = 1
-    start_time = time.time()
-
     total_render_count = num_enviornmetns * renders_per_environment
-    
-    
     renter_rates = np.zeros(total_render_count)
+    
     print("\n\n\nSTARTING DATASET GENERATION...")
+    start_time = time.time()
     for image_id in range(start_idx, start_idx + renders_per_environment):
         
         # randomly place camera in a volume defined by a cube mesh
@@ -827,6 +1058,7 @@ if GENERATE_DATASET:
         json.dump(instances_dict, f)
         
     with open(dataset_path+f"/refs.json", 'w') as f:
+    # with open(f"refs.json", 'w') as f:
         json.dump(refs_list, f)
     
         

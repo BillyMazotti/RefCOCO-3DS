@@ -16,6 +16,38 @@ Post tutorial, to quickly run new python code from blender with hotkey:
 
 <img width="491" alt="image" src="https://github.com/BillyMazotti/RefCOCO-Synthetic-3D/assets/96280520/f1b812cc-f343-44e3-a23b-842ad9d4db7d">
 
+## Installing packages to Blender python
+import sys, os, time, warnings
+
+paths = ['/Users/billymazotti/miniforge3/lib/python3.9/site-packages/',
+         os.getcwd()]
+
+for path in paths:
+    sys.path.append(path)
+
+import bpy
+import numpy as np
+import cv2
+from shapely.geometry import Polygon
+import matplotlib.pyplot as plt
+import json
+
+
+import random
+import math
+from math import pi
+from mathutils import Euler, Color, Vector
+from pathlib import Path
+from datetime import datetime
+
+
+# Make sure changes to local functions are being accounted for
+import rotated_rect
+from importlib import reload
+reload(rotated_rect)
+from rotated_rect import RRect_center
+import copy
+
 
 ## RefCOCO-S3D dataset definition 
 ### RefCOCO's annotations format
