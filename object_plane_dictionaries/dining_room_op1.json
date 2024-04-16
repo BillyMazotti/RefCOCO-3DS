@@ -28,7 +28,7 @@
     "max_number": 1
   },
   "obj_bicycle_0_ort_0": {
-    "rot_limits": [[0, 0], [0, 0], [, 360]],
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
     "max_number": 0
   },
   "obj_book_0_ort_0": {

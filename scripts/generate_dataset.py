@@ -837,7 +837,7 @@ def create_spatial_sentences(annotation_array,annotation_idx,phrase_type,sent_id
 
 ### TODO: Render Settings #################################################
 
-number_of_images_per_dataset = 10
+number_of_images_per_dataset = 3
 number_of_datasets = 1
 number_of_samples_for_each_rendered_image = 100
 GENERATE_ANNOTATED_IMAGES = False
