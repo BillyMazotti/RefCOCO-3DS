@@ -546,7 +546,15 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
                 anno_dict["bbox"] = bbox_coords.reshape(-1).tolist()
                 
                 category_name = color_to_object_mapping[IndexOB].split("_")[1]
+                second_word = color_to_object_mapping[IndexOB].split("_")[2]
                 if category_name == "cell": category_name = "cell phone"
+                if second_word == "bat": category_name = "baseball bat"
+                if second_word == "glove": category_name = "baseball glove"
+                if category_name == "potted": category_name = "potted plant"
+                if category_name == "tennis": category_name = "tennis racket"
+                if category_name == "hair": category_name = "hair drier"
+                
+                
                 anno_dict["category_id"] = lookup_category_id(category_name)
                 # anno_dict["category_id"] = 0
                 anno_dict["id"] = ann_id
@@ -823,15 +831,21 @@ def create_spatial_sentences(annotation_array,annotation_idx,phrase_type,sent_id
     
 
     return sent_id_list, sentence_list, sent_id
+
+
+### TODO: Render Settings #################################################
+
+number_of_images_per_dataset = 1
+number_of_datasets = 2
+number_of_samples_for_each_rendered_image = 5
+GENERATE_ANNOTATED_IMAGES = False
+
 ###########################################################################
-###########################################################################
-###########################################################################
-TESTING = False
 
 
 
 camera_volumes = []
-### Define Camera Volumes #################################################
+### TODO: Define Camera Volumes ###########################################
 
 
 camera_volumes = ["CameraVolume1",
@@ -842,7 +856,6 @@ camera_volumes = ["CameraVolume1",
 
 
 ###########################################################################
-if TESTING: placeCameraInVolumes(camera_volumes)
 
 
 # delete all duplicate objects and place all objects outside of envionrment
@@ -850,101 +863,34 @@ delete_all_duplicate_objects()
 move_away_all_objects([5,5,0])
 
 object_plane_dictionaries = {}
-### Define Object Plane dictionaries here #################################
+### TODO: Define Object Plane dictionaries here ###########################
+
 
 objects_in_use = []
 object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
 object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
+object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
 # object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
 
 
 ###########################################################################
-if TESTING: placeObjectsOnPlanes(object_plane_dictionaries)
-
-if TESTING: 
-    
-    i = 0
-    
-    bpy.data.scenes["Scene"].cycles.samples = 5
-    
-     # initialize instances.json dictionary
-    instances_dict = {}
-    instances_dict["info"] = {
-        "description": "This is dev 0.1 version of the 2024 RefCOCO 3D Synthetic Spatial dataset.",
-        "version": "0.1",
-        "year": 2024,
-        "contributor": "University of Michigan",
-    }
-    instances_dict["images"] = []
-    instances_dict["annotations"] = []
-    
-    categoreis_dict = open('categories.json')
-    data_categories_dict = json.load(categoreis_dict)
-    instances_dict["categories"] = data_categories_dict
-        
-    # initialize refs.json list
-    refs_list = []
-    
-    # dictionary of tracking variables
-    tracking_variables = {}
-    tracking_variables["ref_id"] = 0    # annotation id
-    tracking_variables["ann_id"] = 0    # reference id
-    tracking_variables["sent_id"] = 0   # sentence id
-    
-    
-    # set pass index for all objects to 0
-    for obj in bpy.data.objects:
-        bpy.data.objects[obj.name].pass_index = 0
-    
-    color_to_object_mapping = color_all_objects()
-
-    # render image
-    image_name = f"{str(i).zfill(6)}"
-    bpy.context.scene.render.filepath =  os.getcwd() + f"/data/images/{image_name}.png"
-    bpy.ops.render.render(write_still=True)
-    
-    # retrieve rgb and segmentation images
-    rgb_img = cv2.imread(bpy.context.scene.render.filepath) 
-    only_one_segmentation_image_found, segmentation_image = load_segmentation_image()
-    
-    # add info to instances_dict images
-    images_dict = {}
-    images_dict["file_name"] = f"{image_name}.png"
-    images_dict["height"] = rgb_img.shape[0]
-    images_dict["width"] = rgb_img.shape[1]
-    images_dict["id"] = i
-    
-    # add info to instances_dict annotations
-    annotations_list = []
-    annotations_list, refs_list, annotated_image, tracking_variables = annotate_objects_in_image(segmentation_image, 
-                                                                                    rgb_img, 
-                                                                                    color_to_object_mapping,
-                                                                                    annotations_list,
-                                                                                    refs_list,
-                                                                                    i, 
-                                                                                    image_name,
-                                                                                    tracking_variables,
-                                                                                    True)
-    cv2.imwrite(f"data/anno/{image_name}.png", annotated_image)
 
 
-
-### Generate Dataset #########################    
-GENERATE_DATASET = not TESTING
-GENERATE_ANNOTATED_IMAGES = True
-
-
-if GENERATE_DATASET:
     
-    # render settings
-    bpy.data.scenes["Scene"].cycles.samples = 5
-    num_enviornmetns = 1
-    start_idx = 0
-    renders_per_environment = 1
-    
+# render settings
+bpy.data.scenes["Scene"].cycles.samples = number_of_samples_for_each_rendered_image
+bpy.data.scenes["Scene"].cycles.use_adaptive_sampling = True
+bpy.data.scenes["Scene"].cycles.adaptive_threshold = 0.5
+bpy.data.scenes["Scene"].cycles.use_denoising = True
+bpy.data.scenes["Scene"].cycles.use_fast_gi = True
+bpy.data.scenes["Scene"].cycles.debug_use_spatial_splits = True
+bpy.data.scenes["Scene"].cycles.debug_use_hair_bvh = True
+bpy.data.scenes["Scene"].cycles.use_persistent_data = True
+
+
+for dataset in range(number_of_datasets):
     
     # create directory for images and json files
     current_time_stamp = str(datetime.now())
@@ -952,7 +898,7 @@ if GENERATE_DATASET:
     os.mkdir(dataset_path)
     os.mkdir(dataset_path+"/images")
     os.mkdir(dataset_path+"/annotated")
-    
+
     # initialize instances.json dictionary
     instances_dict = {}
     instances_dict["info"] = {
@@ -970,19 +916,22 @@ if GENERATE_DATASET:
         
     # initialize refs.json list
     refs_list = []
-    
+
     # dictionary of tracking variables
     tracking_variables = {}
     tracking_variables["ref_id"] = 0    # annotation id
     tracking_variables["ann_id"] = 0    # reference id
     tracking_variables["sent_id"] = 0   # sentence id
-    
-    total_render_count = num_enviornmetns * renders_per_environment
-    renter_rates = np.zeros(total_render_count)
-    
+
+
+    renter_rates = np.zeros(number_of_images_per_dataset)
+
     print("\n\n\nSTARTING DATASET GENERATION...")
     start_time = time.time()
-    for image_id in range(start_idx, start_idx + renders_per_environment):
+    start_idx = 0
+
+
+    for image_id in range(start_idx, start_idx + number_of_images_per_dataset):
         
         # randomly place camera in a volume defined by a cube mesh
         placeCameraInVolumes(camera_volumes)
@@ -1025,14 +974,14 @@ if GENERATE_DATASET:
         # add info to instances_dict annotations
         annotations_list = []
         annotations_list, refs_list, annotated_image, tracking_variables = annotate_objects_in_image(segmentation_image, 
-                                                                                     rgb_img, 
-                                                                                     color_to_object_mapping,
-                                                                                     annotations_list,
-                                                                                     refs_list,
-                                                                                     image_id, 
-                                                                                     image_name,
-                                                                                     tracking_variables,
-                                                                                     GENERATE_ANNOTATED_IMAGES)
+                                                                                        rgb_img, 
+                                                                                        color_to_object_mapping,
+                                                                                        annotations_list,
+                                                                                        refs_list,
+                                                                                        image_id, 
+                                                                                        image_name,
+                                                                                        tracking_variables,
+                                                                                        GENERATE_ANNOTATED_IMAGES)
         instances_dict["annotations"] += annotations_list
         
         cv2.imwrite(dataset_path + f"/annotated/{image_name}.png", annotated_image)
@@ -1040,7 +989,7 @@ if GENERATE_DATASET:
         
         # render rate statistics
         renter_rates[image_id] =  (time.time() - start_time) / (image_id + 1)
-        seconds_remaining = renter_rates[image_id] * (total_render_count - image_id - 1)
+        seconds_remaining = renter_rates[image_id] * (number_of_images_per_dataset - image_id - 1)
         print(f'\nTotal Passed: {time.strftime("%H:%M:%S",time.gmtime(time.time()-start_time))} | Remaining Time: {time.strftime("%H:%M:%S",time.gmtime(seconds_remaining))}s')
         print(f'Current | Avg | Max | Min Renter Rates (s/img): {round(renter_rates[image_id],2)} | {round(renter_rates[:image_id+1].mean(),2)} | {round(renter_rates[:image_id+1].max(),2)} | {round(renter_rates[:image_id+1].min(),2)}')
         
@@ -1055,5 +1004,5 @@ if GENERATE_DATASET:
     with open(dataset_path+f"/refs.json", 'w') as f:
     # with open(f"refs.json", 'w') as f:
         json.dump(refs_list, f)
-    
         
+            

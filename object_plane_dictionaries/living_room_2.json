@@ -1,22 +1,166 @@
 {
-  "obj_laptop_0_ort_0": {
+  "obj_backpack_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
     "max_number": 1
   },
-  "obj_remote_0_ort_0": {
+  "obj_ball_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 1
+    "max_number": 0
   },
-  "obj_remote_0_ort_1": {
+  "obj_ball_1_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 1
+    "max_number": 0
+  },
+  "obj_banana_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_baseball_bat_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_baseball_bat_0_ort_1": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_baseball_glove_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_bicycle_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_book_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_book_0_ort_1": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_boots_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_boots_0_ort_1": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_bottle_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_bottle_0_ort_1": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_bowl_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_bowl_1_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_bowl_2_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
   },
   "obj_cell_phone_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 1
+    "max_number": 0
   },
   "obj_cell_phone_0_ort_1": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_chair_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_chair_1_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_clock_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_fork_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_frisbee_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_hair_drier_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_handbag_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
     "max_number": 1
+  },
+  "obj_handbag_0_ort_1": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 1
+  },
+  "obj_knife_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_laptop_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_plotted_plant_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_plotted_plant_1_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_remote_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_remote_0_ort_1": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_skateboard_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_skateboard_0_ort_1": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_skis_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_spoon_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_suitcase_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_tennis_racket_0_ort_1": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_toaster_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
+  },
+  "obj_vase_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 0
   }
 }
