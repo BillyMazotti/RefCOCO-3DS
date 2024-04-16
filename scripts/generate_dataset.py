@@ -471,7 +471,7 @@ def placeObjectsOnPlanes(object_plane_dictionaries):
     """
     
     placed_object_footprints = []
-    max_attemps_per_placement = 10
+    max_attemps_per_placement = 50
     for object_plane in object_plane_dictionaries:
         object_plane_dict = object_plane_dictionaries[object_plane]
         object_plane_dict_keys = list(object_plane_dict.keys())
@@ -837,9 +837,9 @@ def create_spatial_sentences(annotation_array,annotation_idx,phrase_type,sent_id
 
 ### TODO: Render Settings #################################################
 
-number_of_images_per_dataset = 1
+number_of_images_per_dataset = 10
 number_of_datasets = 1
-number_of_samples_for_each_rendered_image = 5
+number_of_samples_for_each_rendered_image = 100
 GENERATE_ANNOTATED_IMAGES = False
 
 ###########################################################################
@@ -902,9 +902,9 @@ bpy.data.scenes["Scene"].cycles.samples = number_of_samples_for_each_rendered_im
 bpy.data.scenes["Scene"].cycles.use_adaptive_sampling = True
 bpy.data.scenes["Scene"].cycles.adaptive_threshold = 0.5
 bpy.data.scenes["Scene"].cycles.use_denoising = True
-# bpy.data.scenes["Scene"].cycles.use_fast_gi = True
+bpy.data.scenes["Scene"].cycles.use_fast_gi = False
 bpy.data.scenes["Scene"].cycles.debug_use_spatial_splits = True
-bpy.data.scenes["Scene"].cycles.debug_use_hair_bvh = True
+bpy.data.scenes["Scene"].cycles.debug_use_hair_bvh = False
 bpy.data.scenes["Scene"].cycles.use_persistent_data = True
 
 
@@ -956,11 +956,14 @@ for dataset in range(number_of_datasets):
         placeCameraInVolumes(camera_volumes)
         time.sleep(0.01)
         
-        # Reset enviornment 
-        move_away_all_objects([5,5,0])        
-        
-        # randomly place objects on plane defined by a plane mesh
-        placeObjectsOnPlanes(object_plane_dictionaries)
+        if image_id % 100 == 0:
+            print("Placing Objects for the next 100 images...")
+            # Reset enviornment 
+            move_away_all_objects([5,5,0])     
+            
+            # randomly place objects on plane defined by a plane mesh
+            placeObjectsOnPlanes(object_plane_dictionaries)
+            print("Placing Objects for the next 100 images... Complete!")
         
         # set pass index for all objects to 0
         for obj in bpy.data.objects:
