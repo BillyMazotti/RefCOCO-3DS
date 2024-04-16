@@ -196,7 +196,7 @@ def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footpr
     object_plane_limits = centroidXYZ[0:2] * np.ones((2,2))
 
 
-    if (planeDimensionsXYZ[0:2] - max_object_diameter < 0.0).any():
+    if (planeDimensionsXYZ[0:2] - max_object_diameter < 0.1).any():
        warnings.warn(f"Object Plane {planeName} is too small for object {objectName}. Increase size of object plane {planeName} or remove {objectName} from the plane's json file")
        return placed_object_footprints
 
@@ -210,6 +210,7 @@ def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footpr
     attempt_iter = 0
     while attempt_iter < max_attempts:
         # propose random object pose [m]
+        
         randX, randY, z_pos, randX_theta, randY_theta, randZ_theta = \
             generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,objectName)
         
@@ -470,7 +471,7 @@ def placeObjectsOnPlanes(object_plane_dictionaries):
     """
     
     placed_object_footprints = []
-    max_attemps_per_placement = 100
+    max_attemps_per_placement = 10
     for object_plane in object_plane_dictionaries:
         object_plane_dict = object_plane_dictionaries[object_plane]
         object_plane_dict_keys = list(object_plane_dict.keys())
@@ -553,6 +554,7 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
                 if category_name == "potted": category_name = "potted plant"
                 if category_name == "tennis": category_name = "tennis racket"
                 if category_name == "hair": category_name = "hair drier"
+                if category_name == "ball": category_name = "sports ball"
                 
                 
                 anno_dict["category_id"] = lookup_category_id(category_name)
@@ -835,9 +837,9 @@ def create_spatial_sentences(annotation_array,annotation_idx,phrase_type,sent_id
 
 ### TODO: Render Settings #################################################
 
-number_of_images_per_dataset = 1
+number_of_images_per_dataset = 3
 number_of_datasets = 2
-number_of_samples_for_each_rendered_image = 5
+number_of_samples_for_each_rendered_image = 100
 GENERATE_ANNOTATED_IMAGES = False
 
 ###########################################################################
@@ -858,33 +860,49 @@ camera_volumes = ["CameraVolume1",
 ###########################################################################
 
 
-# delete all duplicate objects and place all objects outside of envionrment
-delete_all_duplicate_objects()
-move_away_all_objects([5,5,0])
+def cleanup_and_define_objects():
+    
+    # delete all duplicate objects and place all objects outside of envionrment
+    delete_all_duplicate_objects()
+    move_away_all_objects([5,5,0])
 
-object_plane_dictionaries = {}
-### TODO: Define Object Plane dictionaries here ###########################
-
-
-objects_in_use = []
-object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
-object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
-# object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+    object_plane_dictionaries = {}
+    ### TODO: Define Object Plane dictionaries here ###########################
 
 
-###########################################################################
+    objects_in_use = []
+    #Kitchen
+    # object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
+    #Dining
+    # object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op1.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op2.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op3.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op3.json",objects_in_use)
+    # LIVING ROOM
+    object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+    object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+    object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+    object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
+    object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
 
 
+    ###########################################################################
+
+    return object_plane_dictionaries
+
+object_plane_dictionaries = cleanup_and_define_objects()
     
 # render settings
 bpy.data.scenes["Scene"].cycles.samples = number_of_samples_for_each_rendered_image
 bpy.data.scenes["Scene"].cycles.use_adaptive_sampling = True
 bpy.data.scenes["Scene"].cycles.adaptive_threshold = 0.5
 bpy.data.scenes["Scene"].cycles.use_denoising = True
-bpy.data.scenes["Scene"].cycles.use_fast_gi = True
+# bpy.data.scenes["Scene"].cycles.use_fast_gi = True
 bpy.data.scenes["Scene"].cycles.debug_use_spatial_splits = True
 bpy.data.scenes["Scene"].cycles.debug_use_hair_bvh = True
 bpy.data.scenes["Scene"].cycles.use_persistent_data = True
@@ -938,7 +956,7 @@ for dataset in range(number_of_datasets):
         time.sleep(0.01)
         
         # Reset enviornment 
-        move_away_all_objects([5,5,0])
+        move_away_all_objects([5,5,0])        
         
         # randomly place objects on plane defined by a plane mesh
         placeObjectsOnPlanes(object_plane_dictionaries)
