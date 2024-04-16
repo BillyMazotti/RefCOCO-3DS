@@ -151,3 +151,16 @@ instances.json = {
     ]
 }
 ```
+
+## Issues with current dataset
+### Poor object origin definition
+* chair
+
+### Objects that need specified object planes near the a "surface to lean on"
+* upright skateboard
+* upright baseball bat
+
+### Lare objects taht need rotation restrictions/new orientations and associated object planes
+* bike
+* skiis
+* skateboard
