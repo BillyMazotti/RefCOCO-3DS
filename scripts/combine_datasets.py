@@ -8,6 +8,7 @@ import shutil
 """ Merge datasets in specified directory
     assumes all datasets have the same "cataegories" key and aassociated field values
 """
+
 path_to_datasets = os.getcwd() + "/saved_datasets/"
 
 # create lists of all dictionaries instances.json and refs.json
