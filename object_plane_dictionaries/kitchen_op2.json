@@ -17,7 +17,7 @@
   },
   "obj_baseball_bat_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_baseball_bat_0_ort_1": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
@@ -41,7 +41,7 @@
   },
   "obj_bottle_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_bottle_0_ort_1": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
@@ -85,7 +85,7 @@
   },
   "obj_hair_drier_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_handbag_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
@@ -101,15 +101,15 @@
   },
   "obj_laptop_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_potted_plant_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_potted_plant_1_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_remote_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
@@ -133,7 +133,7 @@
   },
   "obj_spoon_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 4
+    "max_number": 2
   },
   "obj_suitcase_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],

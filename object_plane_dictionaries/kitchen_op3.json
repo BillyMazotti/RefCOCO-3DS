@@ -41,7 +41,7 @@
   },
   "obj_bottle_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_bottle_0_ort_1": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
@@ -77,7 +77,7 @@
   },
   "obj_fork_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_frisbee_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
@@ -97,7 +97,7 @@
   },
   "obj_knife_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_laptop_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
@@ -105,11 +105,11 @@
   },
   "obj_potted_plant_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_potted_plant_1_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 3
+    "max_number": 2
   },
   "obj_remote_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
@@ -149,6 +149,6 @@
   },
   "obj_vase_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 4
+    "max_number": 2
   }
 }
