@@ -837,9 +837,9 @@ def create_spatial_sentences(annotation_array,annotation_idx,phrase_type,sent_id
 
 ### TODO: Render Settings #################################################
 
-number_of_images_per_dataset = 3
-number_of_datasets = 2
-number_of_samples_for_each_rendered_image = 100
+number_of_images_per_dataset = 1
+number_of_datasets = 1
+number_of_samples_for_each_rendered_image = 5
 GENERATE_ANNOTATED_IMAGES = False
 
 ###########################################################################
@@ -912,6 +912,7 @@ for dataset in range(number_of_datasets):
     
     # create directory for images and json files
     current_time_stamp = str(datetime.now())
+    current_time_stamp = current_time_stamp.replace(":","_")
     dataset_path = os.getcwd()+f"/datasets/RefCOCO_3DS_{current_time_stamp}"
     os.mkdir(dataset_path)
     os.mkdir(dataset_path+"/images")
