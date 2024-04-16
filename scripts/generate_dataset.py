@@ -838,7 +838,7 @@ def create_spatial_sentences(annotation_array,annotation_idx,phrase_type,sent_id
 ### TODO: Render Settings #################################################
 
 number_of_images_per_dataset = 3
-number_of_datasets = 1
+number_of_datasets = 2
 number_of_samples_for_each_rendered_image = 100
 GENERATE_ANNOTATED_IMAGES = False
 
@@ -872,25 +872,25 @@ def cleanup_and_define_objects():
 
     objects_in_use = []
     #Kitchen
-    # object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
+    object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
+    object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
+    object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
+    object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
+    object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
+    object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
     #Dining
     # object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op1.json",objects_in_use)
     # object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op2.json",objects_in_use)
     # object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op3.json",objects_in_use)
     # object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op3.json",objects_in_use)
-    # # LIVING ROOM
-    object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane7"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+    # LIVING ROOM
+    # object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+    # object_plane_dictionaries["ObjectPlane7"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
 
 
     ###########################################################################
@@ -975,8 +975,10 @@ for dataset in range(number_of_datasets):
 
         # render image
         image_name = str(image_id).zfill(6)
+        print("Rendering Image...")
         bpy.context.scene.render.filepath =  dataset_path + f"/images/{image_name}.png"
         bpy.ops.render.render(write_still=True)
+        print("Rendering Image... Complete!")
         
         
         # retrieve rgb and segmentation images

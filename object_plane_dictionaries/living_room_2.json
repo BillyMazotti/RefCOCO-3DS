@@ -69,11 +69,11 @@
   },
   "obj_chair_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 2
+    "max_number": 0
   },
   "obj_chair_1_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
-    "max_number": 2
+    "max_number": 0
   },
   "obj_clock_0_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
