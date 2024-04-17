@@ -87,24 +87,20 @@ percentage_val = 0.2
 ###########################################################################
 
 
-
 # dataset is presumed to come from the merged_dataset directory
 local_dataset_path = "/merged_datasets/" + dataset_to_split_name
-
 original_dataset_path = os.getcwd() + local_dataset_path
 original_dataset_image_directory = original_dataset_path + '/images'
-instances_dict_original, refs_list_original = load_instances_and_refs(original_dataset_path)
 
-
-
-
+# define destination dataset path
 current_time_stamp = datetime.now()
 path_of_split_dataset = os.getcwd() + "/split_datasets/"
 split_dataset_name = "RefCOCO_3ds_" + str(current_time_stamp).replace(":","_")
-
-
 split_dataset_directory = path_of_split_dataset + split_dataset_name
 creat_dataset_directory(split_dataset_directory)
+
+#load original dataset
+instances_dict_original, refs_list_original = load_instances_and_refs(original_dataset_path)
 
 # initialize dump values for instances.json and refs.json
 instances_dict_train = initialie_instances_dict(split_dataset_name, current_time_stamp, instances_dict_original)
