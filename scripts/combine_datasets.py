@@ -23,7 +23,6 @@ for dataset in ref_coco_dictionaries:
 
 # create the merged dataset directory
 current_time_stamp = "merged_datasets_" + str(datetime.now()).replace(":","_")
-
 merged_dataset_directory = os.getcwd() + "/merged_datasets/" + current_time_stamp
 
 if(os.path.exists(merged_dataset_directory)):
@@ -33,10 +32,8 @@ else:
     os.mkdir(merged_dataset_directory + "/images")
 
 
-
-
-### Merged the instances.json files
-# initialize merged instance.json file using the first file
+# initialize dump values for instances.json and refs.json
+# instances.json
 merged_instances_dict = {}
 merged_instances_dict["info"] = {
     "description": f"This is dev 0.1 version of the 2024 RefCOCO 3D Synthetic Spatial dataset. \
@@ -49,10 +46,14 @@ merged_instances_dict["info"] = {
 merged_instances_dict["images"] = instance_dictionaries_list[0]["images"]
 merged_instances_dict["annotations"] = instance_dictionaries_list[0]["annotations"]
 merged_instances_dict["categories"] = instance_dictionaries_list[0]["categories"]   # will not require further editing
+# refs.json
+merged_refs_list = []
+merged_refs_list += ref_dictionaries_list[0]
+
+
+### Merged the instances.json files ##########################
 
 last_image_id = merged_instances_dict["images"][-1]
-
-
 # increment instnaces.json - images
 next_image_id = merged_instances_dict["images"][-1]["id"] + 1
 old_to_new_image_id_mapping = {}
@@ -60,14 +61,13 @@ next_annotation_id = merged_instances_dict["annotations"][-1]["id"] + 1
 old_to_new_annotation_id_mapping = {}
 
 print("\nMerging instances.json files...")
-for dataset_idx, instances_dict in tqdm(enumerate(instance_dictionaries_list[1:])):
+for dataset_idx, instances_dict in enumerate(tqdm(instance_dictionaries_list[1:])):
     dataset_idx += 1
     old_to_new_image_id_mapping[ref_coco_dictionaries[dataset_idx]] = {}
     old_to_new_annotation_id_mapping[ref_coco_dictionaries[dataset_idx]] = {}
     
     # increment all the images
     for image_dict in instances_dict["images"]:
-        
         
         old_to_new_image_id_mapping[ref_coco_dictionaries[dataset_idx]][image_dict["id"]] = next_image_id
         incremented_image_dict = copy.deepcopy(image_dict)
@@ -92,16 +92,12 @@ print("Merging instances.json files... Complete!")
 
 
 
-### Merged the refs.json files
-# initialize merged refs using the first file
-merged_refs_list = []
-merged_refs_list += ref_dictionaries_list[0]
+### Merged the refs.json files ##############################
 
 # need to increment: sent_ids, file_name, ann_id, ref_id, image_id, sent_id
-# increment refs.json
 next_sent_id = merged_refs_list[-1]["sent_ids"][-1]
 print("Merging refs.json files...")
-for dataset_idx, refs_list in tqdm(enumerate(ref_dictionaries_list[1:])):
+for dataset_idx, refs_list in enumerate(tqdm(ref_dictionaries_list[1:])):
     dataset_idx += 1
     for anno_dict in refs_list:
        
@@ -124,11 +120,9 @@ for dataset_idx, refs_list in tqdm(enumerate(ref_dictionaries_list[1:])):
 print("Merging refs.json files... Complete!")
 
 
-
+print("Merging image files...")
 dataset = ref_coco_dictionaries[0]
 image_list = os.listdir(path_to_datasets + dataset + "/images")
-
-print("Merging image files...")
 # increment and send over image data
 for image_name in image_list:
     image_path_src = path_to_datasets + dataset + "/images/" + image_name
@@ -136,7 +130,6 @@ for image_name in image_list:
     shutil.copyfile(image_path_src,image_path_dst)
         
 for dataset in tqdm(ref_coco_dictionaries[1:]):
-    
     
     image_list = os.listdir(path_to_datasets + dataset + "/images")
     for image_name in image_list:
@@ -146,15 +139,15 @@ for dataset in tqdm(ref_coco_dictionaries[1:]):
         image_path_src = path_to_datasets + dataset + "/images/" + image_name
         image_path_dst = merged_dataset_directory + "/images/" + new_image_name
         shutil.copyfile(image_path_src,image_path_dst)
-        
 print("Merging image files... Complete!")
 
-with open(merged_dataset_directory+f"/instances.json", 'w') as f:
-# with open(f"refs.json", 'w') as f:
+
+print("Dumping data to instances.json and refs.json...")
+with open(merged_dataset_directory+"/instances.json", 'w') as f:
     json.dump(merged_instances_dict, f)
 
-with open(merged_dataset_directory+f"/refs.json", 'w') as f:
-# with open(f"refs.json", 'w') as f:
+with open(merged_dataset_directory+"/refs.json", 'w') as f:
     json.dump(merged_refs_list, f)
-    
+print("Dumping data to instances.json and refs.json... Complete!")
+
 
