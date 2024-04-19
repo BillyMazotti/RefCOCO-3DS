@@ -133,6 +133,8 @@ for dataset in tqdm(ref_coco_dictionaries[1:]):
     
     image_list = os.listdir(path_to_datasets + dataset + "/images")
     for image_name in image_list:
+        
+        
         image_id_old = image_name.split(".")[0].lstrip("0")
         if image_id_old == "": image_id_old = 0
         new_image_name = str(old_to_new_image_id_mapping[dataset][int(image_id_old)]).zfill(6) + '.png'
@@ -140,6 +142,11 @@ for dataset in tqdm(ref_coco_dictionaries[1:]):
         image_path_dst = merged_dataset_directory + "/images/" + new_image_name
         shutil.copyfile(image_path_src,image_path_dst)
 print("Merging image files... Complete!")
+
+
+# print("Removing images calls for images that don't exist")
+
+# print("Removing images calls for images that don't exist... Complete!")
 
 
 print("Dumping data to instances.json and refs.json...")

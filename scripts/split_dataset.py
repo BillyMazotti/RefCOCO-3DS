@@ -79,7 +79,11 @@ def add_image_to_split(split_name, image_id, original_dataset_image_directory, s
 
 ### USER INPUT ############################################################
 # load dataset
-dataset_to_split_name = "merged_datasets_2024-04-16 19_01_53.929290"    # test with 540 images
+# dataset_to_split_name = "merged_datasets_2024-04-17 22_33_42.992187"    # dining room
+# dataset_to_split_name = "merged_datasets_2024-04-17 23_04_19.786911"    # living room
+# dataset_to_split_name = "merged_datasets_2024-04-17 23_06_28.360801"    # dining room and living room
+# dataset_to_split_name = "merged_datasets_2024-04-17 23_52_11.301318"    #kitchen
+dataset_to_split_name = "merged_datasets_2024-04-17 23_55_22.843680"    #all
 
 percentage_train = 0.7
 percentage_val = 0.2
