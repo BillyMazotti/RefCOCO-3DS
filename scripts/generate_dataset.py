@@ -982,7 +982,7 @@ def cleanup_and_define_objects(environment):
 number_of_images_per_dataset = 25
 number_of_datasets = 100
 number_of_samples_for_each_rendered_image = 100
-number_of_images_per_random_object_placement = 1
+number_of_images_per_random_object_placement = number_of_images_per_dataset
 
 GENERATE_ANNOTATED_IMAGES = False
 delete_all_duplicates_after_rendering = False
