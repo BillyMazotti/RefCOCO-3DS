@@ -979,12 +979,12 @@ def cleanup_and_define_objects(environment):
 ###########################################################################
 ### TODO: Render Settings and Select Environment ##########################
 
-number_of_images_per_dataset = 5
-number_of_datasets = 1
-number_of_samples_for_each_rendered_image = 1
+number_of_images_per_dataset = 25
+number_of_datasets = 100
+number_of_samples_for_each_rendered_image = 100
 number_of_images_per_random_object_placement = 1
 
-GENERATE_ANNOTATED_IMAGES = True
+GENERATE_ANNOTATED_IMAGES = False
 delete_all_duplicates_after_rendering = False
 
 # UNCOMMENT ONE OF THE FOLLOWING ENVIRONMENTS
