@@ -574,7 +574,7 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
                 segmentation_coords = np.vstack((segmentation_coords,contours[ctr_idx].reshape(-1,2)))   
             
             # only keep annotations with areas >= 30 pixels; coincides with ~99.2% of COCO dataset
-            if area >= 256: # 16**2 pixels
+            if area >= 100: # 16**2 pixels 
             
                 # bounding box coordinates (x_min (cols), y_min (rows), w, h)
                 bbox_seg_coords = convex_contour.reshape(-1,2)
@@ -911,7 +911,8 @@ def cleanup_and_define_objects(environment):
 
     objects_in_use = []
     # KITCHEN
-    if environment == "K":  
+    if True:
+    # if environment == "K":  
         # bike placements
         object_plane_dictionaries["K_OP1_BikeOrt0ByDoor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op4.json",objects_in_use)
         object_plane_dictionaries["K_OP11_BikeOrt0ByDoor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op4.json",objects_in_use)
@@ -978,18 +979,18 @@ def cleanup_and_define_objects(environment):
 ###########################################################################
 ### TODO: Render Settings and Select Environment ##########################
 
-number_of_images_per_dataset = 1
+number_of_images_per_dataset = 5
 number_of_datasets = 1
 number_of_samples_for_each_rendered_image = 1
-number_of_images_per_random_object_placement = number_of_images_per_dataset
+number_of_images_per_random_object_placement = 1
 
 GENERATE_ANNOTATED_IMAGES = True
-delete_all_duplicates_after_rendering = True
+delete_all_duplicates_after_rendering = False
 
 # UNCOMMENT ONE OF THE FOLLOWING ENVIRONMENTS
-# environment = "D"   # dining room
-environment = "K"   # kitchen
-# environment = "L"   # living room
+# environment = "D"   # dining room: Michael, Aryan
+# environment = "K"   # kitchen: Jake, Aryan
+environment = "L"   # living room: Billy
 
 
 ###########################################################################
