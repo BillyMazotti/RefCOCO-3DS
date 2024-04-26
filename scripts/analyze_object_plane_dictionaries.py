@@ -7,7 +7,8 @@ category | living room max appearances | kitchen max appearances|  dining room m
 
 object_count = {}
 
-path_to_dictionaries = os.getcwd() + "/object_plane_dictionaries"
+# path_to_dictionaries = os.getcwd() + "/object_plane_dictionaries"
+path_to_dictionaries = os.getcwd() + "/default"
 
 col = 0
 

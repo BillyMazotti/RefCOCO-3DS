@@ -102,18 +102,9 @@ def placeCameraInVolume(cubeMeshName,roll,camera_targets):
                             step = 1) / 1000
     
     positionCamera(randX, randY, randZ, roll, camera_targets)
-
-def generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,objectName):
     
-    # genrate random x,y,z point on plane for object placement
-    randX = random.randrange(start = object_plane_limits_mm[0,0],
-                            stop = object_plane_limits_mm[1,0],
-                            step = 1) / 1000
-    randY = random.randrange(start = object_plane_limits_mm[0,1],
-                            stop = object_plane_limits_mm[1,1],
-                            step = 1) / 1000    
-    z_pos = centroidXYZ[2]        
-            
+def generate_random_orientation(objects_dict,objectName):
+    
     # generate random orientation wihting rotaiton limits
     if (objects_dict[objectName]["rot_limits"][0][1] - \
             objects_dict[objectName]["rot_limits"][0][0] == 0):
@@ -136,6 +127,23 @@ def generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,
         randZ_theta = random.randrange(start = objects_dict[objectName]["rot_limits"][2][0],
                                         stop = objects_dict[objectName]["rot_limits"][2][1],
                                         step = 1)
+    
+    return randX_theta, randY_theta, randZ_theta 
+    
+
+def generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,objectName):
+    
+    # genrate random x,y,z point on plane for object placement
+    randX = random.randrange(start = object_plane_limits_mm[0,0],
+                            stop = object_plane_limits_mm[1,0],
+                            step = 1) / 1000
+    randY = random.randrange(start = object_plane_limits_mm[0,1],
+                            stop = object_plane_limits_mm[1,1],
+                            step = 1) / 1000    
+    z_pos = centroidXYZ[2]        
+            
+    # generate random orientation wihting rotaiton limits
+    randX_theta, randY_theta, randZ_theta = generate_random_orientation(objects_dict,objectName)
         
     return randX, randY, z_pos, randX_theta, randY_theta, randZ_theta
 
@@ -172,6 +180,32 @@ def add_polygons(contour_of_interest,polygon_list):
     polygon_list += (contour_of_interest,)
     return polygon_list, True
 
+def placeObjectOnAxisOfPlane(planeName, objectName, objects_dict):
+    
+    # set position to ensure object is not hanging off plane
+    # define the x,y limits of the plane
+    centroidXYZ = np.array(bpy.data.objects[planeName].location)
+    planeDimensionsXYZ = np.array(bpy.data.objects[planeName].dimensions)
+    
+    # look through all subparts to find 
+    objectDimensionsXYZ = np.array(bpy.data.objects[objectName].dimensions)
+        
+    # only genreate a object two thirds of the time
+    if random.uniform(0.0,1.0) < 0.66:
+    
+        rand_scaled_value = np.zeros_like(planeDimensionsXYZ)
+        rand_scaled_value[planeDimensionsXYZ.argmax()] = 1
+        rand_delta_XYZ_along_long_axis = rand_scaled_value* (planeDimensionsXYZ-objectDimensionsXYZ) * random.uniform(-0.5,0.5)
+        randXYZ_along_long_axis = rand_delta_XYZ_along_long_axis + centroidXYZ
+        
+        
+        bpy.data.objects[objectName].location = [randXYZ_along_long_axis[0], randXYZ_along_long_axis[1], randXYZ_along_long_axis[2]]
+        randX_theta, randY_theta, randZ_theta = generate_random_orientation(objects_dict,objectName)         
+        bpy.data.objects[objectName].rotation_euler = [randX_theta*math.pi/180,
+                                                        randY_theta*math.pi/180,
+                                                        randZ_theta*math.pi/180]
+            
+            
 def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footprints, max_attempts):
     """
         assmes object is small enough to fit in plane
@@ -195,8 +229,7 @@ def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footpr
     # object_plane_limits = [[xmin,ymin],[xmax,ymax]]
     object_plane_limits = centroidXYZ[0:2] * np.ones((2,2))
 
-
-    if (planeDimensionsXYZ[0:2] - max_object_diameter < 0.1).any():
+    if (planeDimensionsXYZ[0:2] - max_object_diameter < 0.1).any() and objectName.split("_")[1] != "bicycle":
        warnings.warn(f"Object Plane {planeName} is too small for object {objectName}. Increase size of object plane {planeName} or remove {objectName} from the plane's json file")
        return placed_object_footprints
 
@@ -207,40 +240,41 @@ def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footpr
     
     object_plane_limits_mm = (object_plane_limits * 1000).astype(int)
     
-    attempt_iter = 0
-    while attempt_iter < max_attempts:
-        # propose random object pose [m]
+    # only genreate a object two thirds of the time
+    if random.uniform(0.0,1.0) < 0.66:
         
-        randX, randY, z_pos, randX_theta, randY_theta, randZ_theta = \
-            generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,objectName)
-        
-        # Compute Footprints
-        (W_mm,H_mm) = (objectDimensionsXYZ[0]*1000,objectDimensionsXYZ[1]*1000)
-        ang = -randZ_theta #degrees
-        P0_mm = (randX*1000,randY*1000)
-        
-        padding = 1.5
-        if objectName.split("_")[1] == "bicycle":
-            padding = 1.0
-        rr = RRect_center(P0_mm,(W_mm,H_mm),ang,padding)
-        contour_mm = np.array([[[rr.verts[0][0],rr.verts[0][1]]],
-                                [[rr.verts[1][0],rr.verts[1][1]]],
-                                [[rr.verts[2][0],rr.verts[2][1]]],
-                                [[rr.verts[3][0],rr.verts[3][1]]]])
-        
-        placed_object_footprints, new_polygon_added = add_polygons(contour_mm,placed_object_footprints)
-        
-        if new_polygon_added:
-            # check to see if pose is valid with respect to currently placed objects
-            bpy.data.objects[objectName].location = [randX, randY, z_pos]                             
-            bpy.data.objects[objectName].rotation_euler = [randX_theta*math.pi/180,
-                                                            randY_theta*math.pi/180,
-                                                            randZ_theta*math.pi/180]
-            # print(f"Iter {attempt_iter}: Accepted Polygon")
-            break
-        
-        # print(f"Iter {attempt_iter}: Rejected Polygon")
-        attempt_iter += 1
+        attempt_iter = 0
+        while attempt_iter < max_attempts:
+            # propose random object pose [m]
+            
+            randX, randY, z_pos, randX_theta, randY_theta, randZ_theta = \
+                generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,objectName)
+            
+            # Compute Footprints
+            (W_mm,H_mm) = (objectDimensionsXYZ[0]*1000,objectDimensionsXYZ[1]*1000)
+            ang = -randZ_theta #degrees
+            P0_mm = (randX*1000,randY*1000)
+            
+            padding = 2.0
+            rr = RRect_center(P0_mm,(W_mm,H_mm),ang,padding)
+            contour_mm = np.array([[[rr.verts[0][0],rr.verts[0][1]]],
+                                    [[rr.verts[1][0],rr.verts[1][1]]],
+                                    [[rr.verts[2][0],rr.verts[2][1]]],
+                                    [[rr.verts[3][0],rr.verts[3][1]]]])
+            
+            placed_object_footprints, new_polygon_added = add_polygons(contour_mm,placed_object_footprints)
+            
+            if new_polygon_added:
+                # check to see if pose is valid with respect to currently placed objects
+                bpy.data.objects[objectName].location = [randX, randY, z_pos]                             
+                bpy.data.objects[objectName].rotation_euler = [randX_theta*math.pi/180,
+                                                                randY_theta*math.pi/180,
+                                                                randZ_theta*math.pi/180]
+                # print(f"Iter {attempt_iter}: Accepted Polygon")
+                break
+            
+            # print(f"Iter {attempt_iter}: Rejected Polygon")
+            attempt_iter += 1
     
     return placed_object_footprints
 
@@ -467,7 +501,7 @@ def placeCameraInVolumes(camera_volumes,camera_targets):
                                                 size=1, replace=True, p=volume_size_percentages)[0]
     placeCameraInVolume(camera_volumes[camera_volume_selected], roll=0, camera_targets=camera_targets)
 
-def placeObjectsOnPlanes(object_plane_dictionaries):
+def placeObjectsOnPlanes(object_plane_dictionaries,near_wall_objects):
     """ Place objects on multiple planes
 
     Args:
@@ -481,7 +515,16 @@ def placeObjectsOnPlanes(object_plane_dictionaries):
         object_plane_dict_keys = list(object_plane_dict.keys())
         random.shuffle(object_plane_dict_keys)
         for obj_name in object_plane_dict_keys:
-            placeObjectOnPlane(object_plane,obj_name, object_plane_dict,placed_object_footprints,max_attemps_per_placement)
+            
+            if obj_name.split(".")[0] in near_wall_objects:
+                # random 1D placement along centeraxis of plane (used for placing items near wall)
+                placeObjectOnAxisOfPlane(object_plane,obj_name, object_plane_dict)
+            else:
+                # random 2D placement in plane
+                placeObjectOnPlane(object_plane,obj_name, object_plane_dict,placed_object_footprints,max_attemps_per_placement)
+            
+            
+             
 
 
 def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_mapping,annotations_list,refs_list,image_id, image_name, tracking_variables, GENERATE_ANNOTATED_IMAGES):
@@ -531,7 +574,7 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
                 segmentation_coords = np.vstack((segmentation_coords,contours[ctr_idx].reshape(-1,2)))   
             
             # only keep annotations with areas >= 30 pixels; coincides with ~99.2% of COCO dataset
-            if area >= 30:
+            if area >= 256: # 16**2 pixels
             
                 # bounding box coordinates (x_min (cols), y_min (rows), w, h)
                 bbox_seg_coords = convex_contour.reshape(-1,2)
@@ -870,7 +913,8 @@ def cleanup_and_define_objects(environment):
     # KITCHEN
     if environment == "K":  
         # bike placements
-        object_plane_dictionaries["K_OP1_BikeOrt0ByDoor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
+        object_plane_dictionaries["K_OP1_BikeOrt0ByDoor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op4.json",objects_in_use)
+        object_plane_dictionaries["K_OP11_BikeOrt0ByDoor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op4.json",objects_in_use)
         # sink counter
         object_plane_dictionaries["K_OP2_SinkCounter"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
         object_plane_dictionaries["K_OP3_SinkCounter"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
@@ -879,19 +923,16 @@ def cleanup_and_define_objects(environment):
         object_plane_dictionaries["K_OP5_IslandCounter"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
         object_plane_dictionaries["K_OP6_IslandCounter"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
         # floor
-        object_plane_dictionaries["K_OP7_FloorBySink"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
+        object_plane_dictionaries["K_OP7_FloorBySink"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
         object_plane_dictionaries["K_OP8_Floor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
-        object_plane_dictionaries["K_OP9_Floor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
+        object_plane_dictionaries["K_OP9_FloorAgainstIsland"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
         object_plane_dictionaries["K_OP10_Floor_UnderIsland"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
     # DINING ROOM
-    elif environment == "D":    
+    # elif environment == "D":    
         # bike placements   --> TODO: this needs fixing, bikes are too big for current objectg planes
-        # object_plane_dictionaries["D_OP1_BikeOrt1ByCouch"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op5.json",objects_in_use)
-        # object_plane_dictionaries["D_OP2_BikeOrt1ByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op5.json",objects_in_use)
-        # object_plane_dictionaries["D_OP3_BikeOrt0ByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op6.json",objects_in_use)
-        object_plane_dictionaries["D_OP1_BikeOrt1ByCouch"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op2.json",objects_in_use)
-        object_plane_dictionaries["D_OP2_BikeOrt1ByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op3.json",objects_in_use)
-        object_plane_dictionaries["D_OP3_BikeOrt0ByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op2.json",objects_in_use)
+        object_plane_dictionaries["D_OP1_BikeOrt1ByCouch"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op5.json",objects_in_use)
+        object_plane_dictionaries["D_OP2_BikeOrt1ByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op5.json",objects_in_use)
+        object_plane_dictionaries["D_OP3_BikeOrt0ByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op6.json",objects_in_use)
         # chair placements
         object_plane_dictionaries["D_OP4_CharisByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op4.json",objects_in_use)
         object_plane_dictionaries["D_OP5_CharisByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op4.json",objects_in_use)
@@ -900,7 +941,7 @@ def cleanup_and_define_objects(environment):
         object_plane_dictionaries["D_OP7_DinnerTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op1.json",objects_in_use)
         object_plane_dictionaries["D_OP8_DinnerTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op1.json",objects_in_use)
     # LIVING ROOM
-    elif environment == "L":    
+    # elif environment == "L":    
         # coffee table
         object_plane_dictionaries["L_OP1_CoffeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
         object_plane_dictionaries["L_OP2_CoffeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
@@ -914,15 +955,25 @@ def cleanup_and_define_objects(environment):
         object_plane_dictionaries["L_OP8_FloorByCoffeeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
         object_plane_dictionaries["L_OP9_FloorByCoffeeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
         object_plane_dictionaries["L_OP10_FloorByCoffeeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
-        object_plane_dictionaries["L_OP12_BatCornerByDoor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
         object_plane_dictionaries["L_OP13_FloorByTV"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+        # upright bat and skateboard
+        object_plane_dictionaries["L_OP12_BatCornerByDoor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_4.json",objects_in_use)
+        object_plane_dictionaries["L_OP14_BatCornerByDoor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_4.json",objects_in_use)
+        object_plane_dictionaries["L_OP15_BatCornerByCurtain"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_4.json",objects_in_use)
+        object_plane_dictionaries["L_OP16_BatCornerByCurtain"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_4.json",objects_in_use)
         # counter
         object_plane_dictionaries["L_OP11_CounterByTV"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+    else:
+       warnings.warn(f"{environment} is not a valid environment")
+    
+    # Define which objects must be placed near walls for a more realistic look
+    near_wall_objects = ["obj_bicycle_0_ort_0",
+                         "obj_bicycle_0_ort_1"]
         
-    return object_plane_dictionaries
+    return object_plane_dictionaries, near_wall_objects
 
 
-###########################################################################
+#.#########################################################################
 ###########################################################################
 ###########################################################################
 ### TODO: Render Settings and Select Environment ##########################
@@ -930,12 +981,12 @@ def cleanup_and_define_objects(environment):
 number_of_images_per_dataset = 1
 number_of_datasets = 1
 number_of_samples_for_each_rendered_image = 1
-number_of_images_per_rnadom_object_placement = 25
+number_of_images_per_random_object_placement = number_of_images_per_dataset
 
-RENDER_IMAGES = False
 GENERATE_ANNOTATED_IMAGES = True
-delete_all_duplicates_after_rendering = False
+delete_all_duplicates_after_rendering = True
 
+# UNCOMMENT ONE OF THE FOLLOWING ENVIRONMENTS
 # environment = "D"   # dining room
 environment = "K"   # kitchen
 # environment = "L"   # living room
@@ -953,12 +1004,15 @@ camera_volumes = [f"{environment}_CameraVolume1",
                   f"{environment}_CameraVolume4",
                   f"{environment}_CameraVolume5",]
 
-camera_targets = [ f"{environment}_CameraTarget_1",
-                   f"{environment}_CameraTarget_2",]
+
+camera_targets = []
+for obj in bpy.data.objects:
+    if obj.name.split("_")[:2] == [f"{environment}","CameraTarget"]:
+        camera_targets.append(obj.name)
 
 
 print("Loading Object Plane Dictionaries...")
-object_plane_dictionaries = cleanup_and_define_objects(environment)
+object_plane_dictionaries,near_wall_objects = cleanup_and_define_objects(environment)
 print("Loading Object Plane Dictionaries... Complete!")
 
 # fast render settings
@@ -1023,14 +1077,14 @@ for dataset in range(number_of_datasets):
         placeCameraInVolumes(camera_volumes, camera_targets)
         time.sleep(0.01)
         
-        if image_id % number_of_images_per_rnadom_object_placement == 0:
-            print("Placing Objects for the next 100 images...")
+        if image_id % number_of_images_per_random_object_placement == 0:
+            print(f"Placing Objects for the next {number_of_images_per_random_object_placement} images...")
             # Reset enviornment 
             move_away_all_objects([5,5,0])     
             
             # randomly place objects on plane defined by a plane mesh
-            placeObjectsOnPlanes(object_plane_dictionaries)
-            print("Placing Objects for the next 100 images... Complete!")
+            placeObjectsOnPlanes(object_plane_dictionaries,near_wall_objects)
+            print(f"Placing Objects for the next {number_of_images_per_random_object_placement} images... Complete!")
         
         # set pass index for all objects to 0
         for obj in bpy.data.objects:

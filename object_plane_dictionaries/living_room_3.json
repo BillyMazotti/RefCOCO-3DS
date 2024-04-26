@@ -30,5 +30,9 @@
   "obj_tennis_racket_ort_0": {
     "rot_limits": [[0, 0], [0, 0], [0, 360]],
     "max_number": 2
+  },
+  "obj_umbrella_0_ort_0": {
+    "rot_limits": [[0, 0], [0, 0], [0, 360]],
+    "max_number": 2
   }
 }
