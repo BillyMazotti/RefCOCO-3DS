@@ -932,12 +932,13 @@ number_of_datasets = 1
 number_of_samples_for_each_rendered_image = 1
 number_of_images_per_rnadom_object_placement = 25
 
+RENDER_IMAGES = False
 GENERATE_ANNOTATED_IMAGES = True
-delete_all_duplicates_after_rendering = True
+delete_all_duplicates_after_rendering = False
 
 # environment = "D"   # dining room
-# environment = "K"   # kitchen
-environment = "L"   # living room
+environment = "K"   # kitchen
+# environment = "L"   # living room
 
 
 ###########################################################################
@@ -1036,7 +1037,7 @@ for dataset in range(number_of_datasets):
             bpy.data.objects[obj.name].pass_index = 0
         
         color_to_object_mapping = color_all_objects()
-
+        
         # render image
         image_name = str(image_id).zfill(6)
         print("Rendering Image...")
