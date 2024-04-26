@@ -3,9 +3,9 @@ import cv2
 import math
 
 class RRect_center:
-  def __init__(self, p0, s, ang):
+  def __init__(self, p0, s, ang, pad):
     (self.W, self.H) = s # rectangle width and height
-    self.d = 1.25 * math.sqrt(self.W**2 + self.H**2)/2.0 # distance from center to vertices    
+    self.d = pad * math.sqrt(self.W**2 + self.H**2)/2.0 # distance from center to vertices    
     self.c = p0
     self.ang = ang # rotation angle
     self.alpha = math.radians(self.ang) # rotation angle in radians

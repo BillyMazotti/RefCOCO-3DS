@@ -25,20 +25,20 @@ from scripts.rotated_rect import RRect_center
 
 
 
-def selectRandomCameraTarget():
+def selectRandomCameraTarget(camera_targets):
     
-    # collect list of all targets
-    target_list = []
-    for obj in bpy.data.objects:
-        if obj.name.split("_")[0] == "CameraTarget":
-            target_list.append(obj.name)
+    # # collect list of all targets
+    # target_list = []
+    # for obj in bpy.data.objects:
+    #     if obj.name.split("_")[0] == "CameraTarget":
+    #         target_list.append(obj.name)
     
-    selected_target = random.choice(target_list)
+    selected_target = random.choice(camera_targets)
 
     return selected_target
     
         
-def positionCamera(x_pos, y_pos, z_pos, roll_deg):
+def positionCamera(x_pos, y_pos, z_pos, roll_deg, camera_targets):
     """
     Moves the CameraTarget Object 
     """
@@ -50,7 +50,7 @@ def positionCamera(x_pos, y_pos, z_pos, roll_deg):
     bpy.data.objects["Camera"].location = [x_pos, y_pos, z_pos]
     
     # select camera target
-    camera_target_name = selectRandomCameraTarget()
+    camera_target_name = selectRandomCameraTarget(camera_targets)
     
     # set specific axis to point up
     bpy.ops.object.constraint_add(type='TRACK_TO')
@@ -74,7 +74,7 @@ def positionCamera(x_pos, y_pos, z_pos, roll_deg):
 
 
 
-def placeCameraInVolume(cubeMeshName,roll):
+def placeCameraInVolume(cubeMeshName,roll,camera_targets):
     """
     randomly place camera in an UNROTATED mesh cube primitive
     
@@ -101,7 +101,7 @@ def placeCameraInVolume(cubeMeshName,roll):
                             stop = camera_volume_limits_mm[1,2],
                             step = 1) / 1000
     
-    positionCamera(randX, randY, randZ, roll)
+    positionCamera(randX, randY, randZ, roll, camera_targets)
 
 def generate_random_object_pose(object_plane_limits_mm,centroidXYZ,objects_dict,objectName):
     
@@ -218,7 +218,11 @@ def placeObjectOnPlane(planeName, objectName, objects_dict, placed_object_footpr
         (W_mm,H_mm) = (objectDimensionsXYZ[0]*1000,objectDimensionsXYZ[1]*1000)
         ang = -randZ_theta #degrees
         P0_mm = (randX*1000,randY*1000)
-        rr = RRect_center(P0_mm,(W_mm,H_mm),ang)
+        
+        padding = 1.5
+        if objectName.split("_")[1] == "bicycle":
+            padding = 1.0
+        rr = RRect_center(P0_mm,(W_mm,H_mm),ang,padding)
         contour_mm = np.array([[[rr.verts[0][0],rr.verts[0][1]]],
                                 [[rr.verts[1][0],rr.verts[1][1]]],
                                 [[rr.verts[2][0],rr.verts[2][1]]],
@@ -286,7 +290,7 @@ def color_all_objects():
         IndexOB += 1
         bpy.data.objects[obj].pass_index = IndexOB
         color_to_object_mapping[IndexOB] = bpy.data.objects[obj].name
-        
+    
     return color_to_object_mapping
     
             
@@ -446,7 +450,7 @@ def dictionary_for_object_plane(objects_json_file_path,objects_in_use):
         
     return objects_dict_for_object_plane, objects_in_use
 
-def placeCameraInVolumes(camera_volumes):
+def placeCameraInVolumes(camera_volumes,camera_targets):
     """ Place the camera bpy.data.objects["Camera"] in one of multiple volumes
 
     Args:
@@ -461,7 +465,7 @@ def placeCameraInVolumes(camera_volumes):
     volume_size_percentages = volume_sizes / volume_sizes.sum()
     camera_volume_selected = np.random.choice(np.arange(0,len(camera_volumes),1), 
                                                 size=1, replace=True, p=volume_size_percentages)[0]
-    placeCameraInVolume(camera_volumes[camera_volume_selected], roll=0)
+    placeCameraInVolume(camera_volumes[camera_volume_selected], roll=0, camera_targets=camera_targets)
 
 def placeObjectsOnPlanes(object_plane_dictionaries):
     """ Place objects on multiple planes
@@ -494,8 +498,8 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
     for IndexOB in range(max_number_of_annotations):
         IndexOB+=1
         if IndexOB in segmentation_image:
-            mask = np.zeros_like(segmentation_image)
-            mask[segmentation_image == IndexOB] = 255
+            mask = np.zeros((segmentation_image.shape[0],segmentation_image.shape[1],3), dtype=np.uint8)
+            mask[segmentation_image == IndexOB,:] = 255
 
             imgray2 = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
             ret, thresh = cv2.threshold(imgray2, 0,255, cv2.THRESH_BINARY)
@@ -506,9 +510,9 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
             number_of_contours = len(contours)
             
             if number_of_contours > 1:
-                # warnings.warn(f"{number_of_contours} cotours found with the same pass index. \
-                #     \n This suggests {number_of_contours-1} occlusions occured. \
-                #     \n Will proceed to group these partial contours as one contour as a contex hull.")
+                warnings.warn(f"{number_of_contours} cotours found with the same pass index. \
+                    \n This suggests {number_of_contours-1} occlusions occured. \
+                    \n Will proceed to group these partial contours as one contour as a contex hull.")
                 
                 # Find the convex hull object for all contours
                 contours_appended = contours[0]
@@ -578,10 +582,10 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
                 if GENERATE_ANNOTATED_IMAGES:
                     # draw green contour around object
                     cv2.drawContours(annotated_image, contours, -1, (0,255,0), 2)
-                    
+
                     # draw blue rectangle around object
                     cv2.rectangle(annotated_image, (bbox_coords[0,0],bbox_coords[0,1]), 
-                                                (bbox_coords[1,0] + bbox_coords[0,0],bbox_coords[1,1] + bbox_coords[0,1]), (255,0,0), 2) 
+                                                (bbox_coords[1,0] + bbox_coords[0,0],bbox_coords[1,1] + bbox_coords[0,1]), (255,0,0), 2)                    
                     
                     # transparent box
                     box_width = 20
@@ -601,6 +605,12 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
                 # update tracking variables
                 ann_id += 1
                 ref_id += 1
+            
+            
+            # TODO: Create cool by uncommenting these lines
+            # cv2.imshow("anno",annotated_image)
+            # cv2.waitKey()
+            # cv2.destroyAllWindows()
     
     if len(annotations_list) - starting_anno_length  > 0:   # if we've added annotations for this image
                 
@@ -612,6 +622,18 @@ def annotate_objects_in_image(segmentation_image, rgb_image, color_to_object_map
     tracking_variables["sent_id"] = sent_id
     
     return annotations_list, refs_list, annotated_image, tracking_variables
+
+def randomize_lighting():
+    
+    # control the brightness of indoor lights
+    indoor_lighting_val = random.randint(2,20)
+    bpy.data.materials["eissivo"].node_tree.nodes["Emission"].inputs[1].default_value = indoor_lighting_val
+    
+    # control brightness of outdoor sun light
+    random_sun_value = random.choice([0,800,1600])
+    bpy.data.lights["Sun"].energy = random_sun_value
+    
+    
 
 def load_segmentation_image():
     """Load Segmentation Image Generated by Blender; name will
@@ -634,10 +656,10 @@ def load_segmentation_image():
         return False, np.zeros((1))
     else:
         sementation_file_name = segmentation_files_found[0]
-        segmentation_image = cv2.imread("data/" + sementation_file_name)
+        segmentation_image = cv2.imread("data/" + sementation_file_name, -1)    # load 16bit grayscale image
         
         # delete the segmentation image
-        os.remove(segmentation_file_location + "/" + sementation_file_name)
+        os.remove(segmentation_file_location + "/" + sementation_file_name)   #TODO: uncomment
         
         return True, segmentation_image
 
@@ -750,6 +772,7 @@ def generate_sentences(annotations_list, refs_list, starting_anno_length, sent_i
         
     return refs_list, sent_id
 
+
 def create_spatial_sentences(annotation_array,annotation_idx,phrase_type,sent_id, sent_id_list, sentence_list):
 
     category_name = lookup_category_name(annotation_array[annotation_idx,1])
@@ -835,71 +858,109 @@ def create_spatial_sentences(annotation_array,annotation_idx,phrase_type,sent_id
     return sent_id_list, sentence_list, sent_id
 
 
-### TODO: Render Settings #################################################
-
-number_of_images_per_dataset = 2
-number_of_datasets = 1
-number_of_samples_for_each_rendered_image = 100
-GENERATE_ANNOTATED_IMAGES = True
-
-###########################################################################
-
-
-
-camera_volumes = []
-### TODO: Define Camera Volumes ###########################################
-
-
-camera_volumes = ["CameraVolume1",
-                "CameraVolume2",
-                "CameraVolume3",
-                "CameraVolume4",
-                "CameraVolume5",]
-
-
-###########################################################################
-
-
-def cleanup_and_define_objects():
+def cleanup_and_define_objects(environment):
     
     # delete all duplicate objects and place all objects outside of envionrment
     delete_all_duplicate_objects()
     move_away_all_objects([5,5,0])
 
     object_plane_dictionaries = {}
-    ### TODO: Define Object Plane dictionaries here ###########################
-
 
     objects_in_use = []
     # KITCHEN
-    # object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
+    if environment == "K":  
+        # bike placements
+        object_plane_dictionaries["K_OP1_BikeOrt0ByDoor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
+        # sink counter
+        object_plane_dictionaries["K_OP2_SinkCounter"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
+        object_plane_dictionaries["K_OP3_SinkCounter"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
+        # island
+        object_plane_dictionaries["K_OP4_IslandCounter"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
+        object_plane_dictionaries["K_OP5_IslandCounter"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
+        object_plane_dictionaries["K_OP6_IslandCounter"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op1.json",objects_in_use)
+        # floor
+        object_plane_dictionaries["K_OP7_FloorBySink"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
+        object_plane_dictionaries["K_OP8_Floor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
+        object_plane_dictionaries["K_OP9_Floor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op2.json",objects_in_use)
+        object_plane_dictionaries["K_OP10_Floor_UnderIsland"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/kitchen_op3.json",objects_in_use)
     # DINING ROOM
-    # object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op1.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op2.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op3.json",objects_in_use)
-    # object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op3.json",objects_in_use)
+    elif environment == "D":    
+        # bike placements   --> TODO: this needs fixing, bikes are too big for current objectg planes
+        # object_plane_dictionaries["D_OP1_BikeOrt1ByCouch"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op5.json",objects_in_use)
+        # object_plane_dictionaries["D_OP2_BikeOrt1ByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op5.json",objects_in_use)
+        # object_plane_dictionaries["D_OP3_BikeOrt0ByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op6.json",objects_in_use)
+        object_plane_dictionaries["D_OP1_BikeOrt1ByCouch"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op2.json",objects_in_use)
+        object_plane_dictionaries["D_OP2_BikeOrt1ByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op3.json",objects_in_use)
+        object_plane_dictionaries["D_OP3_BikeOrt0ByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op2.json",objects_in_use)
+        # chair placements
+        object_plane_dictionaries["D_OP4_CharisByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op4.json",objects_in_use)
+        object_plane_dictionaries["D_OP5_CharisByTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op4.json",objects_in_use)
+        # dinner table object placements
+        object_plane_dictionaries["D_OP6_DinnerTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op1.json",objects_in_use)
+        object_plane_dictionaries["D_OP7_DinnerTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op1.json",objects_in_use)
+        object_plane_dictionaries["D_OP8_DinnerTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/dining_room_op1.json",objects_in_use)
     # LIVING ROOM
-    object_plane_dictionaries["ObjectPlane1"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane2"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane3"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane4"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane5"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane6"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-    object_plane_dictionaries["ObjectPlane7"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
-
-
-    ###########################################################################
-
+    elif environment == "L":    
+        # coffee table
+        object_plane_dictionaries["L_OP1_CoffeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+        object_plane_dictionaries["L_OP2_CoffeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+        # couch
+        object_plane_dictionaries["L_OP3_Couch"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
+        object_plane_dictionaries["L_OP5_Couch"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
+        object_plane_dictionaries["L_OP6_Couch"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_2.json",objects_in_use)
+        # floor
+        object_plane_dictionaries["L_OP4_Floor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+        object_plane_dictionaries["L_OP7_FloorByCoffeeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+        object_plane_dictionaries["L_OP8_FloorByCoffeeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+        object_plane_dictionaries["L_OP9_FloorByCoffeeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+        object_plane_dictionaries["L_OP10_FloorByCoffeeTable"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+        object_plane_dictionaries["L_OP12_BatCornerByDoor"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+        object_plane_dictionaries["L_OP13_FloorByTV"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_3.json",objects_in_use)
+        # counter
+        object_plane_dictionaries["L_OP11_CounterByTV"],objects_in_use = dictionary_for_object_plane("object_plane_dictionaries/living_room_1.json",objects_in_use)
+        
     return object_plane_dictionaries
 
-object_plane_dictionaries = cleanup_and_define_objects()
-    
-# render settings
+
+###########################################################################
+###########################################################################
+###########################################################################
+### TODO: Render Settings and Select Environment ##########################
+
+number_of_images_per_dataset = 1
+number_of_datasets = 1
+number_of_samples_for_each_rendered_image = 1
+number_of_images_per_rnadom_object_placement = 25
+
+GENERATE_ANNOTATED_IMAGES = True
+delete_all_duplicates_after_rendering = True
+
+# environment = "D"   # dining room
+# environment = "K"   # kitchen
+environment = "L"   # living room
+
+
+###########################################################################
+###########################################################################
+###########################################################################
+
+
+camera_volumes = []
+camera_volumes = [f"{environment}_CameraVolume1",
+                  f"{environment}_CameraVolume2",
+                  f"{environment}_CameraVolume3",
+                  f"{environment}_CameraVolume4",
+                  f"{environment}_CameraVolume5",]
+
+camera_targets = [ f"{environment}_CameraTarget_1",
+                   f"{environment}_CameraTarget_2",]
+
+
+print("Loading Object Plane Dictionaries...")
+object_plane_dictionaries = cleanup_and_define_objects(environment)
+print("Loading Object Plane Dictionaries... Complete!")
+
+# fast render settings
 bpy.data.scenes["Scene"].cycles.samples = number_of_samples_for_each_rendered_image
 bpy.data.scenes["Scene"].cycles.use_adaptive_sampling = True
 bpy.data.scenes["Scene"].cycles.adaptive_threshold = 0.5
@@ -954,11 +1015,14 @@ for dataset in range(number_of_datasets):
 
     for image_id in range(start_idx, start_idx + number_of_images_per_dataset):
         
+        # set the lighting 
+        randomize_lighting()
+        
         # randomly place camera in a volume defined by a cube mesh
-        placeCameraInVolumes(camera_volumes)
+        placeCameraInVolumes(camera_volumes, camera_targets)
         time.sleep(0.01)
         
-        if image_id % 100 == 0:
+        if image_id % number_of_images_per_rnadom_object_placement == 0:
             print("Placing Objects for the next 100 images...")
             # Reset enviornment 
             move_away_all_objects([5,5,0])     
@@ -1032,4 +1096,7 @@ for dataset in range(number_of_datasets):
     # with open(f"refs.json", 'w') as f:
         json.dump(refs_list, f)
         
-            
+if delete_all_duplicates_after_rendering:
+    
+    delete_all_duplicate_objects()
+    move_away_all_objects([5,5,0])
