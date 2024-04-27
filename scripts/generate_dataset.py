@@ -1130,7 +1130,8 @@ for dataset in range(number_of_datasets):
                                                                                         GENERATE_ANNOTATED_IMAGES)
         instances_dict["annotations"] += annotations_list
         
-        cv2.imwrite(dataset_path + f"/annotated/{image_name}.png", annotated_image)
+        if GENERATE_ANNOTATED_IMAGES:
+            cv2.imwrite(dataset_path + f"/annotated/{image_name}.png", annotated_image)
         
         
         # render rate statistics
