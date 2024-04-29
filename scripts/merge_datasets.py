@@ -9,7 +9,7 @@ import shutil
     assumes all datasets have the same "cataegories" key and aassociated field values
 """
 
-path_to_datasets = os.getcwd() + "/saved_datasets/"
+path_to_datasets = os.getcwd() + "/all_datasets/"
 
 # create lists of all dictionaries instances.json and refs.json
 instance_dictionaries_list = []

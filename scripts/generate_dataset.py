@@ -23,25 +23,21 @@ import scripts.rotated_rect as rotated_rect
 reload(rotated_rect)
 from scripts.rotated_rect import RRect_center
 
-
-
-def selectRandomCameraTarget(camera_targets):
-    
-    # # collect list of all targets
-    # target_list = []
-    # for obj in bpy.data.objects:
-    #     if obj.name.split("_")[0] == "CameraTarget":
-    #         target_list.append(obj.name)
-    
-    selected_target = random.choice(camera_targets)
-
-    return selected_target
     
         
 def positionCamera(x_pos, y_pos, z_pos, roll_deg, camera_targets):
+    """ Position, orient, and point the Camera
+
+    Args:
+        x_pos (float): the x coordinate in 3d space where the Camera is placed
+        y_pos (float): the y coordinate in 3d space where the Camera is placed
+        z_pos (float): the z coordinate in 3d space where the Camera is placed
+        roll_deg (float): the roll angle of the camera from horizontal where
+            <0 or >0 corresponds with counter clockwise or clockwise respectively
+        camera_targets (list["string"]): list of the names of all available 
+            targets to point the camera at
     """
-    Moves the CameraTarget Object 
-    """
+    
     bpy.data.objects["Camera"].select_set(True)
     current_state = bpy.data.objects["Camera"].select_get()
     bpy.context.view_layer.objects.active = bpy.data.objects['Camera']
@@ -49,8 +45,8 @@ def positionCamera(x_pos, y_pos, z_pos, roll_deg, camera_targets):
     # position camera to specified x,y,z location
     bpy.data.objects["Camera"].location = [x_pos, y_pos, z_pos]
     
-    # select camera target
-    camera_target_name = selectRandomCameraTarget(camera_targets)
+    # randomly select a camera target
+    camera_target_name = random.choice(camera_targets)
     
     # set specific axis to point up
     bpy.ops.object.constraint_add(type='TRACK_TO')
@@ -71,7 +67,6 @@ def positionCamera(x_pos, y_pos, z_pos, roll_deg, camera_targets):
     bpy.data.objects["Camera"].rotation_mode = 'ZYX'
     bpy.data.objects["Camera"].rotation_euler[2] = upright_camera_orientation[2] + \
                                                         roll_deg*pi/180
-
 
 
 def placeCameraInVolume(cubeMeshName,roll,camera_targets):
@@ -499,7 +494,11 @@ def placeCameraInVolumes(camera_volumes,camera_targets):
     volume_size_percentages = volume_sizes / volume_sizes.sum()
     camera_volume_selected = np.random.choice(np.arange(0,len(camera_volumes),1), 
                                                 size=1, replace=True, p=volume_size_percentages)[0]
-    placeCameraInVolume(camera_volumes[camera_volume_selected], roll=0, camera_targets=camera_targets)
+    
+    # select roll angle
+    roll = random.normalvariate(0,10)
+    
+    placeCameraInVolume(camera_volumes[camera_volume_selected], roll, camera_targets=camera_targets)
 
 def placeObjectsOnPlanes(object_plane_dictionaries,near_wall_objects):
     """ Place objects on multiple planes
@@ -979,18 +978,18 @@ def cleanup_and_define_objects(environment):
 ###########################################################################
 ### TODO: Render Settings and Select Environment ##########################
 
-number_of_images_per_dataset = 25
-number_of_datasets = 100
+number_of_images_per_dataset = 5
+number_of_datasets = 1
 number_of_samples_for_each_rendered_image = 100
 number_of_images_per_random_object_placement = number_of_images_per_dataset
 
-GENERATE_ANNOTATED_IMAGES = False
-delete_all_duplicates_after_rendering = False
+GENERATE_ANNOTATED_IMAGES = True
+delete_all_duplicates_after_rendering = True
 
 # UNCOMMENT ONE OF THE FOLLOWING ENVIRONMENTS
-# environment = "D"   # dining room: Michael, Aryan
-# environment = "K"   # kitchen: Jake, Aryan
-environment = "L"   # living room: Billy
+# environment = "D"   # dining room: Michael, Aditya
+environment = "L"   # kitchen: Jake, Aryan
+# environment = "L"   # living room: Billy
 
 
 ###########################################################################
