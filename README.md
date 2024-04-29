@@ -1,4 +1,4 @@
-# RefCOCO-Synthetic-3D
+# RefCOCO-3D Synthetic
 
 
 ## Installation and Preparation
